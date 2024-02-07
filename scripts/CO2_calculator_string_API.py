@@ -36,7 +36,7 @@ def search():
 
 
     # Load DataFrame (adjust path as needed)
-    path_database = "data/processed/nacres/NACRES_with_embeddings_and_factors.pkl"
+    path_database = "data//NACRES_with_embeddings_and_factors.pkl"
     df = pd.read_pickle(path_database)
 
     # Search in DataFrame
