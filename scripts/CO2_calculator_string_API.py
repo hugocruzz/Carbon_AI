@@ -4,7 +4,16 @@ import pandas as pd
 import openai
 from openai.embeddings_utils import get_embedding, cosine_similarity
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 app = Flask(__name__)
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,  # Use the remote address of the client as the key for rate limiting
+    default_limits=["5 per day"]  # Set the rate limit to 5 requests per day
+)
 
 # Function to search in DataFrame
 def search_in_df(df, product_description, n=3):
@@ -17,12 +26,20 @@ def search_in_df(df, product_description, n=3):
     results_index = df["similarity"].argmax()
     return results_index, results_score
 
+@limiter.limit("5 per day")  # Apply the rate limit to this endpoint
 @app.route('/search', methods=['POST'])
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return "You have exceeded your daily request limit. Please try again tomorrow.", 429
+
 def search():
     data = request.json
     input_string = data.get('input_string')
     input_price = float(data.get('input_price'))
     API_key = data.get('API_key')
+    if API_key is None:
+        API_key = os.environ.get('OPENAI_API_KEY')
+        
     # Set API key from environment variable
     openai.api_key = API_key
 
