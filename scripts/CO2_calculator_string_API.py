@@ -42,6 +42,7 @@ def search():
         
     # Set API key from environment variable
     openai.api_key = API_key
+    
 
     # Load DataFrame (adjust path as needed)
     path_database = "data/processed/nacres/NACRES_with_embeddings_and_factors.pkl"

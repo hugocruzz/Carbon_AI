@@ -1,15 +1,18 @@
 import openai
 import os
 import pandas as pd
-import tiktoken
 import numpy as np
+from openai import OpenAI
+from sklearn.metrics.pairwise import cosine_similarity
 
-from openai.embeddings_utils import get_embedding, cosine_similarity
+def get_embedding(text, client, model="text-embedding-ada-002"):
+   text = text.replace("\n", " ")
+   return client.embeddings.create(input = [text], model=model).data[0].embedding
 
 def search_in_df(df, product_description, n=3, pprint=True):
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     product_embedding = get_embedding(
-        product_description,
-        engine="text-embedding-ada-002",
+        product_description,client
     )
     df["similarity"] = df.embedding.apply(lambda x: cosine_similarity(x, product_embedding))
     results_score = df["similarity"].max()
@@ -22,9 +25,9 @@ with open(r"C:\Users\cruz" + r'\API_openAI.txt', 'r') as f:
     openai.api_key = read_api_key
 
 # %%
-def __main__(input_string, API_key):
+def __main__(input_string, API_key, factor_type="Monetary"):
     os.environ["OPENAI_API_KEY"] = read_api_key
-    path_database =r"data\processed\nacres\NACRES_with_embeddings_and_factors.pkl"
+    path_database =r"data\NACRES_with_embeddings_and_factors.pkl"
 
     df = pd.read_pickle(path_database)
     search_output = search_in_df(df, input_string, n=1, pprint=False)
