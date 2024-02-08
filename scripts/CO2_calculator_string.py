@@ -14,7 +14,7 @@ def search_in_df(df, product_description, n=3, pprint=True):
     product_embedding = get_embedding(
         product_description,client
     )
-    df["similarity"] = df.embedding.apply(lambda x: cosine_similarity(x, product_embedding))
+    df["similarity"] = df.embedding.apply(lambda x: cosine_similarity(np.array(x).reshape(1,-1), np.array(product_embedding).reshape(1,-1)))
     results_score = df["similarity"].max()
     results_index = df["similarity"].argmax()
     return (results_index, results_score)
