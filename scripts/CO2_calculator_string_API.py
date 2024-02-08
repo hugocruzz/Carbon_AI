@@ -7,10 +7,10 @@ from openai.embeddings_utils import get_embedding, cosine_similarity
 app = Flask(__name__)
 
 # Load products DataFrame
-nacres_database_path = r"data/NACRES_with_embeddings_and_factors.pkl"
+nacres_database_path = "data/NACRES_with_embeddings_and_factors.pkl"
 nacres_df = pd.read_pickle(nacres_database_path)
 
-agribalyse_database_path = r"data\agribalyse_embeddings_factors.pkl"
+agribalyse_database_path = "data/agribalyse_embeddings_factors.pkl"
 agribalyse_df = pd.read_pickle(agribalyse_database_path)
 
 # Function to search in DataFrame
