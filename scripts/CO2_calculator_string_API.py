@@ -6,73 +6,92 @@ from openai.embeddings_utils import get_embedding, cosine_similarity
 
 app = Flask(__name__)
 
-# Load products DataFrame
-nacres_database_path = "data/NACRES_with_embeddings_and_factors.pkl"
-nacres_df = pd.read_pickle(nacres_database_path)
+# Load DataFrames
+data_paths = {
+    "nacres": "data/NACRES_with_embeddings_and_factors.pkl",
+    "agribalyse": "data/agribalyse_embeddings_factors.pkl",
+    "mobitool": "data/mobitool_embeddings_factors.pkl"
+}
+data_frames = {name: pd.read_pickle(path) for name, path in data_paths.items()}
 
-agribalyse_database_path = "data/agribalyse_embeddings_factors.pkl"
-agribalyse_df = pd.read_pickle(agribalyse_database_path)
+# Configuration for each database
+database_configs = {
+    "labo1point5": {
+        "df": "nacres",
+        "category_name": "Intitulés Nacres",
+        "code_name": "CodeNACRES",
+        "emission_factor_name": "FEL1P5",
+        "emission_factor_unit": "kg CO2e",
+        "functional_unit_name": "unite fonctionnelle"
+    },
+    "agribalyse": {
+        "df": "agribalyse",
+        "category_name": "Nom du Produit en Français",
+        "code_name": "Code\nAGB",
+        "emission_factor_name": "kg CO2 eq/kg de produit",
+        "emission_factor_unit": "kg CO2e",
+        "functional_unit_name": "unite fonctionnelle"
+    },
+    "mobitool": {
+        "df": "mobitool",
+        "category_name": "Véhicule",
+        "code_name": "combined",
+        "emission_factor_name": "somme [g CO2-éq.]",
+        "emission_factor_unit": "g CO2e",
+        "functional_unit_name": "unite fonctionnelle"
+    }
+}
 
-# Function to search in DataFrame
-def search_in_products(products_df, query_description, top_n=3):
-    query_embedding = get_embedding(
-        query_description,
-        engine="text-embedding-ada-002",
-    )
+def get_query_embedding(query_description):
+    return get_embedding(query_description, engine="text-embedding-ada-002")
+
+def find_top_matches(products_df, query_embedding, top_n=3):
     products_df["similarity"] = products_df["embedding"].apply(lambda x: cosine_similarity(x, query_embedding))
-    highest_similarity_score = products_df["similarity"].max()
-    best_match_index = products_df["similarity"].argmax()
-    return best_match_index, highest_similarity_score
+    return products_df.sort_values(by="similarity", ascending=False).head(top_n)
+
+def format_response(matched_product, config, similarity, amount=None):
+    functional_unit = matched_product[config["functional_unit_name"]]
+    CO2_emitted = matched_product[config["emission_factor_name"]] * amount if amount else None
+
+    
+    return {
+        'matched_category': matched_product[config["category_name"]],
+        'matched_code': matched_product[config["code_name"]],
+        'similarity_score': round(similarity * 100) / 100,
+        'CO2_emitted': CO2_emitted,
+        'emission_factor': matched_product[config["emission_factor_name"]],
+        'emission_factor_unit': config["emission_factor_unit"],
+        'functional_unit': functional_unit
+    }
 
 @app.route('/search', methods=['POST'])
 def search():
     data = request.json
-    product_description = data.get('product_description')
-    budget = data.get('amount')
-    api_key = data.get('api_key')
-    database_name = data.get('database_name')
+    product_description = data.get('product_description', '')
+    amount = data.get('amount')
+    database_name = data.get('database_name', 'labo1point5')
+    top_n = data.get('top_n', 1)
+    api_key = data.get('api_key', os.environ.get('OPENAI_API_KEY'))
 
-    if api_key is None:
-        api_key = os.environ.get('OPENAI_API_KEY')
-    if database_name is None:
-        database_name = "labo1point5"
+    if database_name not in database_configs:
+        valid_databases = ", ".join(database_configs.keys())
+        return jsonify({
+            "error": f"Invalid database name: {database_name}. Valid database names are: {valid_databases}"
+        }), 400
 
-    # Set API key
     openai.api_key = api_key
-    if database_name=="labo1point5":
-        products_df = nacres_df
-        category_database_name = "Intitulés Nacres"
-        code_database_name = "CodeNACRES"
-        emission_factor_name = "FEL1P5"
-        emission_factor_name_unit = "kg CO2e/euros dépensés"
-    elif database_name=="agribalyse":
-        products_df = agribalyse_df
-        category_database_name = "Nom du Produit en Français"
-        code_database_name = "Code\nAGB"
-        emission_factor_name = "kg CO2 eq/kg de produit"
-        emission_factor_name_unit = "kg CO2e/kg de produit"
+    config = database_configs[database_name]
+    products_df = data_frames[config["df"]]
+    query_embedding = get_query_embedding(product_description)
+    top_matches = find_top_matches(products_df, query_embedding, top_n=top_n)
 
-    # Search in DataFrame
-    best_match = search_in_products(products_df, product_description, top_n=1)
-    matched_product = products_df.iloc[best_match[0]]
-    
-    # Calculate similarity and emissions
-    similarity = round(best_match[1] * 100) / 100
-    emission_factor = matched_product[emission_factor_name]
-    CO2_emitted = emission_factor * budget if budget is not None else None
-    # Prepare the result
-    response_data = {
-        'matched_category': matched_product[category_database_name],
-        'matched_code': matched_product[code_database_name],
-        'similarity_score': similarity,
-        'CO2_emitted': CO2_emitted,
-        'CO2_unit': 'kg CO2e',
-        'emission_factor': emission_factor,
-        'emission_factor_unit': emission_factor_name_unit
-    }
+    response_data = [
+        format_response(row[1], config, row[1]["similarity"], amount)
+        for row in top_matches.iterrows()
+    ]
 
     return jsonify(response_data)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Use port 5000 if not specified
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

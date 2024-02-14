@@ -38,7 +38,6 @@ if response.status_code == 200:
 else:
     print("Failed to call API:", response.status_code, response.text)
 
-    print("Failed to call API:", response.status_code, response.text)
 ```
 Results:
 ```python
@@ -51,10 +50,10 @@ Version: 0.1.0:
 - Develop the API taking a string as input, interpret and returning the CO2 emissions of the product
 
 Future releases:
-- Takes into account multiple database for the CO2 emissions, like Agrybalise etc
-- Mass based calculation (as a parameter)
+- Takes into account multiple database for the CO2 emissions, like Agrybalise, mobitool etc
 - Chatbot that will ask the user for the product description and price
-
+- Ajouter couche AI pour interpreter l'input.
+- Use Top_n as arguments 
 ### API parameters:
 Inputs:
 - product_description: string in which the product description is written
