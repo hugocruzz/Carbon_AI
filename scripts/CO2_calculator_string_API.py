@@ -10,7 +10,8 @@ app = Flask(__name__)
 data_paths = {
     "nacres": "data/NACRES_with_embeddings_and_factors.pkl",
     "agribalyse": "data/agribalyse_embeddings_factors.pkl",
-    "mobitool": "data/mobitool_embeddings_factors.pkl"
+    "mobitool": "data/mobitool_embeddings_factors.pkl",
+    "unspsc": "data/unspsc_ada_embeddings.pkl"
 }
 data_frames = {name: pd.read_pickle(path) for name, path in data_paths.items()}
 
@@ -39,6 +40,14 @@ database_configs = {
         "emission_factor_name": "somme [g CO2-éq.]",
         "emission_factor_unit": "g CO2e",
         "functional_unit_name": "unite fonctionnelle"
+    },
+    "usnspc": {
+        "df": "unspsc",
+        "category_name": "English Name",
+        "code_name": "Code",
+        "emission_factor_name": None,
+        "emission_factor_unit": None,
+        "functional_unit_name": None
     }
 }
 
@@ -50,7 +59,9 @@ def find_top_matches(products_df, query_embedding, top_n=3):
     return products_df.sort_values(by="similarity", ascending=False).head(top_n)
 
 def format_response(matched_product, config, similarity, amount=None):
-    functional_unit = matched_product[config["functional_unit_name"]]
+    functional_unit = matched_product[config["functional_unit_name"]] if config["functional_unit_name"] else None
+    emission_factor_name = matched_product[config["emission_factor_name"]] if config["emission_factor_name"] else None
+    emission_factor_unit = matched_product[config["emission_factor_unit"]] if config["emission_factor_unit"] else None
     CO2_emitted = matched_product[config["emission_factor_name"]] * amount if amount else None
 
     
@@ -59,8 +70,8 @@ def format_response(matched_product, config, similarity, amount=None):
         'matched_code': matched_product[config["code_name"]],
         'similarity_score': round(similarity * 100) / 100,
         'CO2_emitted': CO2_emitted,
-        'emission_factor': matched_product[config["emission_factor_name"]],
-        'emission_factor_unit': config["emission_factor_unit"],
+        'emission_factor': emission_factor_name,
+        'emission_factor_unit': emission_factor_unit,
         'functional_unit': functional_unit
     }
 

@@ -2,13 +2,11 @@
 import openai
 import os
 import pandas as pd
-import tiktoken
 import numpy as np
 from ast import literal_eval
 from sklearn.metrics.pairwise import cosine_similarity
 
 from openai.embeddings_utils import get_embedding
-
 
 # %%
 with open(r"C:\Users\cruz" + r'\API_openAI.txt', 'r') as f:
@@ -18,16 +16,15 @@ os.environ["OPENAI_API_KEY"] = read_api_key
 
 # %%
 output_path = r"data\Achats_CO2.xlsx"
-path_source= r"data\Liste produits CATALYSE SV 2022.xlsx"
-path_source = "Ordinateur de bureau"
+path_source= r"data\achats_EPFL/Liste produits CATALYSE SV 2022.xlsx"
 input_column = ["Libellé FR Famille", "Libellé FR Sous-sous-famille"]
 
 #Keep unchanged 
-path_embedded="data/processed/ACHATS_SV_embedded.pkl"
-path_database =r"data\processed\nacres\NACRES_with_embeddings.csv"
+path_embedded="data/achats_EPFL/achats_100_embedded.pkl"
+path_database =r"data\UNSPSC_ada_embedding_subset_XXXXX000.pkl"
 
 def input_embedding(path_source, input_column, path_embedded=None):
-    df_achats = pd.read_excel(path_source)
+    df_achats = pd.read_excel(path_source).head(100)
     df_achats.fillna("", inplace=True)
     df_achats['combined'] = df_achats[input_column].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
     combined_unique = df_achats['combined'].unique()
@@ -51,7 +48,7 @@ else:
 
 # %%
 #Check if path_source containes a .xlsx file
-df_target = pd.read_pickle(path_source)
+df_target = pd.read_pickle(path_database)
 def mapping_embeddings(df_source, df_target):
     # Assuming df_NACRES_ada['embedding'] and df_unspsc['embedding'] are lists of lists
     # Convert these lists of embeddings into NumPy arrays
@@ -74,7 +71,8 @@ closest_distances, closest_indices = mapping_embeddings(df_source, df_target)
 df_source["closest_indices"] = closest_indices
 df_source["closest_distances"] = (1-closest_distances)
 #Merge df_source and df_target based on "closest_indices" and df_target.index
-df_source = df_source.merge(df_target, left_on = "closest_indices", right_index = True, how = "left", rsuffix = "_NACRES")
+df_source = df_source.merge(df_target, left_on = "closest_indices", right_index = True, how = "left")
+
+df_source.to_excel(output_path, index=False)
 df_source["CO2eq_kg"] = df_source["Prix total"] * df_source["FEL1P5"]
 df_source["Flag"] = df_source["closest_distances"] < 0.8
-df_source.to_excel(output_path, index=False)
