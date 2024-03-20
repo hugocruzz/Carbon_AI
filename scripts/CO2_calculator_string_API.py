@@ -41,7 +41,7 @@ database_configs = {
         "emission_factor_unit": "g CO2e",
         "functional_unit_name": "unite fonctionnelle"
     },
-    "usnspc": {
+    "unspsc": {
         "df": "unspsc",
         "category_name": "English Name",
         "code_name": "Code",
@@ -61,7 +61,7 @@ def find_top_matches(products_df, query_embedding, top_n=3):
 def format_response(matched_product, config, similarity, amount=None):
     functional_unit = matched_product[config["functional_unit_name"]] if config["functional_unit_name"] else None
     emission_factor_name = matched_product[config["emission_factor_name"]] if config["emission_factor_name"] else None
-    emission_factor_unit = matched_product[config["emission_factor_unit"]] if config["emission_factor_unit"] else None
+    emission_factor_unit = config["emission_factor_unit"]
     CO2_emitted = matched_product[config["emission_factor_name"]] * amount if amount else None
 
     
@@ -95,14 +95,15 @@ def search():
     products_df = data_frames[config["df"]]
     query_embedding = get_query_embedding(product_description)
     top_matches = find_top_matches(products_df, query_embedding, top_n=top_n)
-
     response_data = [
         format_response(row[1], config, row[1]["similarity"], amount)
         for row in top_matches.iterrows()
     ]
-
     return jsonify(response_data)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+def choose_top_n_matches(matches):
+    print(1)
