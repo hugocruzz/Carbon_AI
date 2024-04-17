@@ -18,12 +18,12 @@ embedding_encoding = "cl100k_base"  # Encoding for text-embedding-ada-002
 max_tokens = 8000  # Max tokens for ada-002
 
 
-path_source = r"data\achats_EPFL\achats_SV_2022.pkl"
-output_path = r"data\achats_SV_2022.xlsx"
+path_source = r"data\achats_EPFL\achats_SV_2022_keywords_embeded.pkl"
+output_path = r"data\achats_SV_2022_UNSPSC_keywords.xlsx"
 database_path =r"data\unspsc_ada_embeddings.pkl"
 
 df_source = pd.read_pickle(path_source)
-
+df_source.rename(columns={'embedding_y': 'embedding'}, inplace=True)
 df_target = pd.read_pickle(database_path)
 df_target['Code'] = df_target['Code'].astype(str)
 
