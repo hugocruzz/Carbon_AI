@@ -1,10 +1,11 @@
-# %%
+
 import openai
 import os
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import re
+from openai import OpenAI
+import json 
 
 with open(r"C:\Users\cruz" + r'\API_openAI.txt', 'r') as f:
     read_api_key = f.readline()
@@ -17,8 +18,8 @@ embedding_encoding = "cl100k_base"  # Encoding for text-embedding-ada-002
 max_tokens = 8000  # Max tokens for ada-002
 
 
-path_source = r"data\achats_EPFL\achats_SV_2022.pkl"
-output_path = r"data\achats_SV_2022_NACRES_chatgpt.xlsx"
+path_source = r"data\Results\achats_GVG_lab_2022.pkl"
+output_path = r"data\achats_GVG_NACRES_GPT.xlsx"
 database_path =r"data\NACRES_embedded.pkl"
 
 df_source = pd.read_pickle(path_source)
@@ -44,58 +45,48 @@ similarity_scores, closest_indices = mapping_embeddings(df_source, df_target, to
 # Update df_source to include the top 10 matches
 df_source["Similarity_scores"] = list(similarity_scores)
 df_source["NACRES_names"] = [[df_target.loc[idx, "nacres.description.en"] for idx in row] for row in closest_indices]
+df_source.to_excel(r"data\achats_GVG_NACRES_embedding.xlsx", index=False)
 
-def choose_best_match_batch(df, batch_size=5):
-    # Set up API key
-    openai.api_key = os.environ["OPENAI_API_KEY"] 
-    for idx, row in df.iterrows():
-            options = ", ".join([f'"{option}" ({index})' for index, option in enumerate(row['NACRES_names'])])
-            prompt = f"Product Name: {row['Désignation article']}, Category: {row['Famille_libellé anglais']}, Provider: {row['Fournisseur']}. The product fits best in one of the categories: {options}. Based on the description, give the index of the best matched category."
+def choose_best_match_GPT(df):
+    #Convert df into a dictionnary:
+    df.rename(columns={'Désignation article': 'Article name', 'Famille_libellé anglais':'Category', "Fournisseur": "Provider", "NACRES_names": "Options"}, inplace=True)
+    df_dict = df[["Article name", "Category", "Provider", "Options"]].to_dict(orient='records')
+    #Chunk df_dict into smaller chunks
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    example_json = {1:{"Choosen option": 'CLINICAL INVESTIGATION CONSUMABLES AND REAGENTS'}, 2:{"Choosen option": 'CELL BIOLOGY: ASSAY KITS, FUNCTIONAL ASSAYS - BIOCHEMICAL KITS'}}
+    
+    # Convert list of dictionaries into a dictionary with indices as keys
+    df_dict = {i: row for i, row in enumerate(df_dict)}
+
+    #df_dict is a dictionnary, split it into chunks of 10
+    chunk_size = 7
+    df_dict_chunks = [dict(list(df_dict.items())[i:i + chunk_size]) for i in range(0, len(df_dict), chunk_size)]
 
 
-            valid_response = False
-            attempts = 0
-
-            while not valid_response and attempts < 5:  # Limit the number of attempts to avoid infinite loops
-                messages = [
-                    {"role": "system", "content": "You are helping to match products to the most relevant categories by selecting an index. The output should not be anything else than an integer corresponding to the index."},
-                    {"role": "user", "content": prompt}
-                ]
-
-                # Call the OpenAI Chat API for each product description
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",  # Adjust the model name as needed
-                    messages=messages
-                )
-
-                # Parse the response
-                
-                response_text = response.choices[0].message['content'].strip()
-                try:
-                    selected_index = int(response_text)
-                    df.at[idx, 'Chosen_NACRES_index'] = selected_index
-                    df.at[idx, 'Chosen_NACRES_name'] = row['NACRES_names'][selected_index]
-                    valid_response = True
-                except: 
-                    try:
-                        match = re.search(r'\((\d+)\)', response_text)
-                        if match:
-                            selected_index = int(match.group(1))
-                        
-                        df.at[idx, 'Chosen_NACRES_index'] = selected_index
-                        df.at[idx, 'Chosen_NACRES_name'] = row['NACRES_names'][selected_index]
-                        valid_response = True
-                    except ValueError:
-                        # If conversion to int fails, make another attempt
-                        attempts += 1
-
-            if not valid_response:
-                df.at[idx, 'Chosen_NACRES_index'] = -1  # Indicates that no valid index was found
-                df.at[idx, 'Chosen_NACRES_name'] = "Index not valid"
-
+    for chunk in df_dict_chunks:
+        chat_completion = client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            response_format={"type":"json_object"},
+            messages=[
+                {"role": "system", "content": """Provide output in valid JSON. Your are given a dictionnary in json format.
+                For each elements, and based on the informations you have in the 'Article name', 'Category' and 'Provider' fields, 
+                 you need to choose between 1 of the options in the 'Options' field.
+                 The choosen option should be the most relevant to the 'Article name', 'Category' and 'Provider' fields.
+                The data schema should be like this :""" + json.dumps(example_json)},
+                {"role": "user", "content": json.dumps(chunk)}
+            ]
+        )
+        data= chat_completion.choices[0].message.content
+        data_json = json.loads(data)
+        for key in data_json.keys():
+            df_dict[int(key)]["Choosen option"] = data_json[key]["Choosen option"]
+    #Convert back to dataframe
+    df = pd.DataFrame(list(df_dict.values()))
     return df
-
 # Call the function with df_source
-df_source = choose_best_match_batch(df_source, batch_size=5)
+df_processed = choose_best_match_GPT(df_source)
+#Merge df_source with df_processed based on index
+df_results = df_source.merge(df_processed, left_index=True, right_index=True)
 # Save updated DataFrame to Excel
-df_source.to_excel("your_output_path.xlsx", index=False)
+df_results.to_excel(output_path, index=False)
+
