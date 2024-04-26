@@ -39,15 +39,18 @@ def mapping_embeddings(df_source, df_target, top_n=10):
     return max_similarity_scores, closest_indices
 
 # Calculate the top 10 matches
-top_n = 10
+top_n = 1
 similarity_scores, closest_indices = mapping_embeddings(df_source, df_target, top_n)
 
 # Update df_source to include the top 10 matches
 df_source["Similarity_scores"] = list(similarity_scores)
-df_source["NACRES_names"] = [[df_target.loc[idx, "nacres.description.en"] for idx in row] for row in closest_indices]
-df_source.to_excel(r"data\achats_GVG_NACRES_embedding.xlsx", index=False)
+df_source["NACRES_names"] = [[df_target.loc[idx, "nacres.description.en"] for idx in row][0] for row in closest_indices]
+df_source["NACRES_code"] = [[df_target.loc[idx, "nacres.code"] for idx in row][0] for row in closest_indices]
 
-def choose_best_match_GPT(df):
+
+df_source.to_excel(r"data\Results/achats_GVG_NACRES_embedding.xlsx", index=False)
+
+def choose_best_match_GPT(df, model="gpt-3.5-turbo-0125"):
     #Convert df into a dictionnary:
     df.rename(columns={'Désignation article': 'Article name', 'Famille_libellé anglais':'Category', "Fournisseur": "Provider", "NACRES_names": "Options"}, inplace=True)
     df_dict = df[["Article name", "Category", "Provider", "Options"]].to_dict(orient='records')
@@ -65,7 +68,7 @@ def choose_best_match_GPT(df):
 
     for chunk in df_dict_chunks:
         chat_completion = client.chat.completions.create(
-            model="gpt-3.5-turbo-0125",
+            model=model,
             response_format={"type":"json_object"},
             messages=[
                 {"role": "system", "content": """Provide output in valid JSON. Your are given a dictionnary in json format.
@@ -84,7 +87,7 @@ def choose_best_match_GPT(df):
     df = pd.DataFrame(list(df_dict.values()))
     return df
 # Call the function with df_source
-df_processed = choose_best_match_GPT(df_source)
+df_processed = choose_best_match_GPT(df_source, model="gpt-3.5-turbo-0125")
 #Merge df_source with df_processed based on index
 df_results = df_source.merge(df_processed, left_index=True, right_index=True)
 # Save updated DataFrame to Excel
