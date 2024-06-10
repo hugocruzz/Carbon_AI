@@ -85,3 +85,6 @@ Outputs:
 - matched_category: string, the category of the product (Intitulé NACRES)
 - similarity_score: float, the similarity score of the product with the database, the highest the better match
 ```
+
+Tester avec C1333 labo
+Checkavec 2023

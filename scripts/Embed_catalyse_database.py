@@ -4,14 +4,14 @@ from openai import OpenAI
 import os 
 
 # Load the DataFrame
-df = pd.read_excel(r'data\achats_EPFL\Liste produits CATALYSE SV 2022.xlsx')
-#Create a sample dataframe containing 10 elements of unique df["Famille_libellé anglais"]
+df = pd.read_excel(r'data\Results\Test_articles_translated.xlsx')
+#df = df[df["Libellé FR Centre de coût"]=="Unité de la Prof. Gisou van der Goot"]
+if "Créé par Nom" in df.columns:
+    df.drop(columns=["Créé par Nom", "Créé par Prénom"], inplace=True)
 
-df = df[df["Libellé FR Centre de coût"]=="Unité de la Prof. Gisou van der Goot"]
-#Drop column "Créé par Nom" and "Créé par Prénom"
-df = df.drop(columns=["Créé par Nom", "Créé par Prénom"])
-
+'''
 df_unspsc = pd.read_excel(r"data\Raw\Tableau UNSPSC V10 Full_Raw_1 (006).xlsx")
+
 #Take the first 2 digits of the UNSPSC code and add "0000000"
 df_copy = df.copy()
 df_copy = df_copy[~df_copy["Famille1"].isna()]
@@ -28,9 +28,10 @@ df_copy = df_copy.merge(df_unspsc[["Code", "English Name"]], left_on="Segment_co
 df_copy["Family_code"] = df_copy["Famille1"].astype(str).str[:4] + "0000"
 #Filter all the rows that ends with "0000"
 df_unspsc = df_unspsc[df_unspsc["Code"].str.endswith("0000")]
-
-embedding_column_name = ["Désignation article", "Famille_libellé anglais", "Fournisseur"]
-output_file_name = 'data/Results/achats_GVG_lab_2022.pkl'
+'''
+#embedding_column_name = ["Désignation article", "Famille_libellé anglais", "Fournisseur"]
+embedding_column_name = ["Désignation article", "Famille"]
+output_file_name = 'data/Results/test_dataset.pkl'
 
 # Embedding model parameters
 embedding_model = "text-embedding-ada-002"

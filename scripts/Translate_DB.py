@@ -50,10 +50,15 @@ def main(df, columns_to_translate):
 
 if __name__ == '__main__':
     # Example DataFrame loading
-    df = pd.read_pickle(r"data\NACRES_with_embeddings_and_factors.pkl") # Load the DataFrame  
-    columns_to_translate = ["Segment"]  # List your columns here
-    df = df.head(10)
+    df = pd.read_excel(r"data\achats_EPFL\Test_100_articles.xlsx") # Load the DataFrame  
+    columns_to_translate = ["Désignation article", "Famille"]  # List your columns here
     translated_df = main(df, columns_to_translate)
+    translated_df["Désignation article original"] = translated_df["Désignation article"]
+    translated_df["Désignation article"] = translated_df["Désignation article_translated"]
+    translated_df["Famille original"] = translated_df["Famille"]
+    translated_df["Famille"] = translated_df["Famille_translated"]
+    translated_df.drop(columns=["Désignation article_translated", "Famille_translated"], inplace=True)
+    translated_df.to_excel("data/Results/Test_articles_translated.xlsx")
     # Save or use your translated DataFrame
     #translated_df.to_csv(r"data\NACRES_with_embeddings_and_factors_translated.csv", index=False)
 
