@@ -4,13 +4,6 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 
-# Initialize tokenizer and model globally to avoid reloading in each subprocess
-model_name = "Helsinki-NLP/opus-mt-fr-en"
-tokenizer = MarianTokenizer.from_pretrained(model_name)
-model = MarianMTModel.from_pretrained(model_name)
-if torch.cuda.is_available():
-    model = model.to('cuda')
-
 def translate_batch(texts):
     # Ensure the function uses the globally loaded model and tokenizer
     global tokenizer, model
@@ -23,7 +16,7 @@ def translate_batch(texts):
     translated_texts = [tokenizer.decode(t, skip_special_tokens=True) for t in translated_tokens]
     return translated_texts
 
-def process_chunk(chunk,columns_to_translate):
+def process_chunk(chunk,columns_to_translate, suffix):
     for column in columns_to_translate:
         # Process each column in batches
         chunk_size = 10  # Define your batch size; adjust based on your memory and performance needs
@@ -31,36 +24,50 @@ def process_chunk(chunk,columns_to_translate):
         for i in range(0, len(chunk), chunk_size):
             batch_texts = chunk[column].iloc[i:i + chunk_size].tolist()
             translated_texts.extend(translate_batch(batch_texts))
-        chunk[f'{column}_translated'] = translated_texts
+        chunk[column+suffix] = translated_texts
     return chunk
 
-def main(df, columns_to_translate):
+def translate(df, columns_to_translate, suffix="_translated"):
     # Split DataFrame into chunks
     num_splits = 10  # Adjust based on your system's memory and CPU cores
     chunks = np.array_split(df, num_splits)
 
     # Use ProcessPoolExecutor to parallelize the translation
     with ProcessPoolExecutor(max_workers=num_splits) as executor:
-        futures = [executor.submit(process_chunk, chunk,columns_to_translate) for chunk in chunks]
+        futures = [executor.submit(process_chunk, chunk,columns_to_translate, suffix) for chunk in chunks]
         processed_chunks = [f.result() for f in futures]
 
     # Concatenate the processed chunks back into a single DataFrame
     translated_df = pd.concat(processed_chunks)
     return translated_df
 
+def translate_DB(df, columns_to_translate, output_file_name=None):
+    #Check if columns_to_translate is empty
+    if not columns_to_translate:
+        Warning("No columns to translate were provided, no translation will be performed.")
+        return df
+    # Initialize tokenizer and model globally to avoid reloading in each subprocess
+    model_name = "Helsinki-NLP/opus-mt-fr-en"
+    tokenizer = MarianTokenizer.from_pretrained(model_name)
+    model = MarianMTModel.from_pretrained(model_name)
+    
+    if torch.cuda.is_available():
+        model = model.to('cuda')
+    # Update the DataFrame with original and translated columns
+    translated_df = translate(df, columns_to_translate, suffix="_translated")
+    for column in columns_to_translate:
+        translated_df[f"{column} original"] = translated_df[column]
+        translated_df[column] = translated_df[f"{column}_translated"]
+        translated_df.drop(columns=[f"{column}_translated"], inplace=True)
+    if output_file_name:
+        translated_df.to_pickle(output_file_name, index=False)
+    return translated_df
+
 if __name__ == '__main__':
     # Example DataFrame loading
-    df = pd.read_excel(r"data\achats_EPFL\Test_100_articles.xlsx") # Load the DataFrame  
+    path = r"data\achats_EPFL\Test_100_articles.xlsx"
     columns_to_translate = ["Désignation article", "Famille"]  # List your columns here
-    translated_df = main(df, columns_to_translate)
-    translated_df["Désignation article original"] = translated_df["Désignation article"]
-    translated_df["Désignation article"] = translated_df["Désignation article_translated"]
-    translated_df["Famille original"] = translated_df["Famille"]
-    translated_df["Famille"] = translated_df["Famille_translated"]
-    translated_df.drop(columns=["Désignation article_translated", "Famille_translated"], inplace=True)
-    translated_df.to_excel("data/Results/Test_articles_translated.xlsx")
-    # Save or use your translated DataFrame
-    #translated_df.to_csv(r"data\NACRES_with_embeddings_and_factors_translated.csv", index=False)
-
-
-
+    df = pd.read_excel(path) # Load the DataFrame  
+    translated_df = translate_DB(path, columns_to_translate)
+    translated_df.to_excel(r"data\achats/translated_test_100_articles.xlsx", index=False)
+    
