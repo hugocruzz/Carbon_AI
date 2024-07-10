@@ -36,7 +36,7 @@ def main():
     api_key = load_api_key(api_key_path)
     
     source_input = "Ordinateur de bureau HP EliteDesk 800 G6 - Core i5 10500 - 8 Go RAM - 256 Go SSD - Windows 10 Pro"
-    
+    Price_input = 1000
     #Read the input_path.yaml and define the paths
     with open("scripts/input_path.yaml", "r") as file:
         paths = yaml.safe_load(file)
@@ -48,7 +48,6 @@ def main():
     source_embedded_file = "data/source_string_embedded.pkl"
     target_translated_file = get_file_paths(target_path, "_translated.pkl")
     target_embedded_file = get_file_paths(target_path, "_embedded.pkl")
-    output_path = r"data\Results\matched_datasets.xlsx"
 
     try:
         logging.info("Processing source input")
@@ -67,7 +66,7 @@ def main():
         logging.info("Matching datasets")
         matched_df = Match_datasets(source_df, target_df, output_path=output_path, gpt_model="gpt-4o", api_key=api_key)
         matched_df["unité"] = 1
-        matched_df["Prix total"] = matched_df["Prix unitaire"] * matched_df["unité"]
+        matched_df["Prix total"] = Price_input * matched_df["unité"]
         matched_df["CO2 kg"] = matched_df["ademe.ef.kg.co2e.per.euro"]*matched_df["Prix total"]
         matched_df.to_excel(output_path, index=False)
     except Exception as e:

@@ -1,9 +1,12 @@
-# Ploplo
+# Carbon AI 
 
 This repository contains scripts and utilities for integrating, translating, embedding, and matching datasets using Python and various data science libraries.
 
 ## Project Overview
 
+This project takes a dataframe of articles and calculate the CO2 impact using the Labo1point5 database for emission factors.
+
+## Data science overview
 The project aims to automate the process of integrating and matching datasets using natural language processing (NLP) techniques. It involves translating textual descriptions, embedding them into vector representations, and matching them against a target dataset to find closest matches. This pipeline is useful for applications such as product matching across different databases or systems.
 
 ## Features
@@ -40,7 +43,7 @@ Ensure you have the following installed:
 
 ### Step 1: Translate and Embed Data
 
-Modify `main_string.py` or `Translate_DB.py` to accept either a string input or a DataFrame containing articles. Adjust columns and paths as necessary.
+Modify `main_string.py` or `main.py` to accept either a string input or a DataFrame containing articles. Adjust columns and paths (input_path.yaml) as necessary.
 
 ### Step 2: Match Datasets
 
