@@ -1,18 +1,25 @@
-from transformers import MarianMTModel, MarianTokenizer
-import torch
-import pandas as pd
-from concurrent.futures import ProcessPoolExecutor
 import numpy as np
+from concurrent.futures import ProcessPoolExecutor
 
-# Initialize tokenizer and model globally
-model_name = "Helsinki-NLP/opus-mt-fr-en"
-tokenizer = MarianTokenizer.from_pretrained(model_name)
-model = MarianMTModel.from_pretrained(model_name)
+# Declare global variables for the model and tokenizer
+model = None
+tokenizer = None
 
-if torch.cuda.is_available():
-    model = model.to('cuda')
+def load_model_and_tokenizer(model_name="Helsinki-NLP/opus-mt-fr-en"):
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        from transformers import MarianMTModel, MarianTokenizer
+        import torch
+        tokenizer = MarianTokenizer.from_pretrained(model_name)
+        model = MarianMTModel.from_pretrained(model_name)
+        if torch.cuda.is_available():
+            model = model.to('cuda')
+    return model, tokenizer
 
 def translate_batch(texts):
+    model, tokenizer = load_model_and_tokenizer()
+    import torch
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     encoded_inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
     with torch.no_grad():
@@ -31,7 +38,7 @@ def process_chunk(chunk, columns_to_translate, suffix):
     return chunk
 
 def translate(df, columns_to_translate, suffix="_translated"):
-    num_splits = 10
+    num_splits = min(10, len(df))  # Optimize number of splits
     chunks = np.array_split(df, num_splits)
     with ProcessPoolExecutor(max_workers=num_splits) as executor:
         futures = [executor.submit(process_chunk, chunk, columns_to_translate, suffix) for chunk in chunks]
@@ -40,6 +47,8 @@ def translate(df, columns_to_translate, suffix="_translated"):
     return translated_df
 
 def translate_DB(input_data, columns_to_translate=None, output_file_name=None):
+    import pandas as pd
+
     if isinstance(input_data, str):
         # Handle string input
         translated_text = translate_batch([input_data])[0]
@@ -67,6 +76,7 @@ def translate_DB(input_data, columns_to_translate=None, output_file_name=None):
     return translated_df
 
 if __name__ == '__main__':
+    import pandas as pd
     path = r"data\achats_EPFL\Test_100_articles.xlsx"
     columns_to_translate = ["Désignation article", "Famille"]
     df = pd.read_excel(path)
