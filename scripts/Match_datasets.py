@@ -5,6 +5,52 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 import json 
 from difflib import get_close_matches
+import time
+import json
+import logging
+from openai import OpenAIError
+
+def call_api_with_retries(client, model, chunk, example_json, max_retries=5, initial_delay=1):
+    success = False
+    retries = 0
+    delay = initial_delay
+
+    while not success and retries < max_retries:
+        try:
+            chat_completion = client.chat.completions.create(
+                model=model,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content":
+                     f"""You are an assistant tasked with selecting the most relevant option from a list based on an 'Article name' and its description. 
+                        For each element in the provided JSON dictionary, prioritize matching the text inside asterisks (*) within the 'Article name' to the 'Options' field. 
+                        Use the rest of the text as contextual information to ensure compatibility. 
+                        Provide your output in valid JSON format. 
+                        The data schema should be like this: {json.dumps(example_json)}"""
+                    },
+                    {"role": "user", "content": json.dumps(chunk)}
+                ]
+            )
+            data = chat_completion.choices[0].message.content
+            data_json = json.loads(data)
+            success = True
+        except OpenAIError as e:
+            logging.error(f"API call failed: {e}. Retrying in {delay} seconds...")
+            time.sleep(delay)
+            retries += 1
+            delay *= 2  # Exponential backoff
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON decode error: {e}")
+            break
+        except Exception as e:
+            logging.error(f"An unexpected error occurred: {e}")
+            break
+
+    if success:
+        return data_json
+    else:
+        raise Exception("Failed to complete API call after multiple retries")
+
 
 def Match_datasets(df_source, df_target, top_n=10, output_path=None, gpt_model="gpt-3.5-turbo", api_key=None):
     """Match source and target datasets using embeddings and GPT model."""
@@ -45,20 +91,12 @@ def Match_datasets(df_source, df_target, top_n=10, output_path=None, gpt_model="
                 example_json = {0:{"Chosen option": chunk[list(chunk.keys())[0]]["Options"][0]}}
             else:
                 example_json = {0:{"Chosen option": chunk[list(chunk.keys())[0]]["Options"][0]}, 1:{"Chosen option": chunk[list(chunk.keys())[1]]["Options"][0]}}
-            chat_completion = client.chat.completions.create(
-                model=model,
-                response_format={"type":"json_object"},
-                messages=[
-                    {"role": "system", "content": f"""Provide output in valid JSON. You are given a dictionary in JSON format.
-                    For each element, and based on the information you have in the 'Article name',
-                    you need to choose between one of the options in the 'Options' field.
-                    The chosen option should be the most relevant to the 'Article name' field.
-                    The data schema should be like this : {json.dumps(example_json)}"""},
-                    {"role": "user", "content": json.dumps(chunk)}
-                ]
-            )
-            data = chat_completion.choices[0].message.content
-            data_json = json.loads(data)
+            #Use a Try and except, if goes to except, repeat the try process
+            try:
+                data_json = call_api_with_retries(client, model, chunk, example_json)
+            except Exception as e:
+                print(f"Failed to retrieve data: {e}")
+                continue
             for key in data_json.keys():
                 df_dict[int(key)]["Chosen option"] = data_json[key]["Chosen option"]
         df = pd.DataFrame(list(df_dict.values()))
@@ -83,7 +121,6 @@ def Match_datasets(df_source, df_target, top_n=10, output_path=None, gpt_model="
         re_matched = pd.merge(unmatched_df, df_target, left_on="combined_source_gpt", right_on="combined_target", how="left")
         df_matched[unmatched_mask] = re_matched
 
-    df_matched_original = df_matched.copy()
     df_matched.drop(columns=["combined_source_gpt", "combined_target_x", "Article name", "embedding_x", "embedding_y"], inplace=True)
     df_matched.rename(columns={"combined_target_y": "combined_target"}, inplace=True)
     if output_path:

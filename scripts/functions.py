@@ -1,6 +1,32 @@
 from tableauhyperapi import HyperProcess, Connection, Telemetry, TableDefinition, SqlType, Inserter, TableName, CreateMode
 import pandas as pd
 
+def pre_process_source_df(source_columns_to_embed, source_df):
+    source_df = source_df.dropna(subset=source_columns_to_embed,how = 'all')
+        # Remove numbers from the specified columns
+    for column in source_columns_to_embed:
+        source_df[column] = source_df[column].str.replace(r'\d+', '', regex=True)
+    return source_df
+
+def update_dataframe_with_correction(source_df, corrected_df, key_column):
+    source_df_copy = source_df.copy()
+    corrected_df_copy = corrected_df.copy()
+    # Reset index to ensure no duplicate labels interfere with the merge
+    source_df_copy.reset_index(drop=True, inplace=True)
+    corrected_df_copy.reset_index(drop=True, inplace=True)
+    # Merging dataframes on 'Libellé article'
+    merged_df = pd.merge(source_df_copy, corrected_df_copy, on=key_column, how='left', suffixes=('', '_corrected'))
+    # List of columns to update
+    columns_to_update = [col for col in corrected_df_copy.columns if col != key_column]
+    # Update the columns in source_df with values from corrected_df
+    for col in columns_to_update:
+        # Update source_df_copy[col] with merged_df[f'{col}_corrected']
+        source_df_copy[col] = merged_df.apply(
+            lambda row: row[f'{col}_corrected'] if pd.notnull(row[f'{col}_corrected']) else None, axis=1
+        )
+    
+    return source_df_copy
+
 def get_sqltype(dtype):
     """Convert pandas dtype to Tableau Hyper SQLType."""
     if pd.api.types.is_integer_dtype(dtype):
@@ -44,3 +70,7 @@ def df_to_hyper(df, output_path):
             with Inserter(connection, table_definition) as inserter:
                 inserter.add_rows(receiver_data)
                 inserter.execute()
+def load_api_key(api_key_path: str) -> str:
+    """Load API key from a file."""
+    with open(api_key_path, 'r') as f:
+        return f.readline().strip()

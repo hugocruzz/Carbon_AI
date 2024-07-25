@@ -64,7 +64,7 @@ def main():
         target_df = translate_and_embed(target_df, target_columns_to_translate, target_columns_to_embed, target_translated_file, target_embedded_file, api_key)
 
         logging.info("Matching datasets")
-        matched_df = Match_datasets(source_df, target_df, output_path=output_path, gpt_model="gpt-4o", api_key=api_key)
+        matched_df = Match_datasets(source_df, target_df, output_path=output_path, gpt_model="gpt-4o-mini", api_key=api_key)
         matched_df["unité"] = 1
         matched_df["Prix total"] = Price_input * matched_df["unité"]
         matched_df["CO2 kg"] = matched_df["ademe.ef.kg.co2e.per.euro"]*matched_df["Prix total"]
