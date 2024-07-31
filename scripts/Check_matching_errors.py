@@ -23,10 +23,9 @@ def call_api_with_retries(client, model, chunk, example_json, max_retries=5, ini
                 model=model,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content":
-                        f"""You are an assistant that evaluates the semantic similarity between two texts.
-                        For each element in the provided JSON dictionary, determine if the 'Article name' and 'Option' do not match semantically. 
-                        Its does not have to be a perfect match, just flag the pair that have nothing to do with each other.
+                    {"role": "system", "content": f"""
+                        You are an assistant that evaluates the semantic similarity between two texts.
+                        For each element in the provided JSON dictionary, rate the semantic similarity between the 'Article name' and 'Option' on a scale from 1 to 5, where 1 means completely unrelated and 5 means highly related.
                         Provide your output in valid JSON format.
                         The data schema should be like this: {json.dumps(example_json)}"""
                     },
@@ -63,9 +62,9 @@ def check_semantic_similarity_batch(df, combined_col='combined', target_col='com
         chunk = {j: {"Article name": pair[0], "Option": pair[1]} for j, pair in enumerate(batch_pairs)}
         
         if len(chunk) == 1:
-            example_json = {0: {"Semantic match": "yes"}}
+            example_json = {0: {"Semantic match": 1}}
         else:
-            example_json = {0: {"Semantic match": "yes"}, 1: {"Semantic match": "yes"}}
+            example_json = {0: {"Semantic match": 1}, 1: {"Semantic match": 4}}
 
         try:
             data_json = call_api_with_retries(client, model, chunk, example_json)
@@ -75,7 +74,7 @@ def check_semantic_similarity_batch(df, combined_col='combined', target_col='com
             continue
 
         for key in data_json.keys():
-            flags.append(data_json[key]["Semantic match"].strip().lower() == 'yes')
+            flags.append(data_json[key]["Semantic match"].strip().lower() == 1)
 
     df['Flag'] = pd.Series(flags, index=df.index)
     return df
@@ -87,7 +86,7 @@ def find_semantic_mismatches_batch(df, combined_col='combined', target_col='comb
 # Example usage
 if __name__ == "__main__":
     # Load your data
-    source_path =r"data\Results\matched_datasets_gpt-0.xlsx"
+    source_path =r"data\Results\EPFL_CO2_2023.xlsx"
     df = pd.read_excel(source_path)
     
     api_key_path = r"C:\Users\cruz\API_openAI.txt"
@@ -100,6 +99,7 @@ if __name__ == "__main__":
     print(result_df.head())
 
     # Optionally, save the result to a file
-    output_path = "path_to_your_output_file.xlsx"
+
+    output_path = source_path.replace(".xlsx", "_checked.xlsx")
     result_df.to_excel(output_path, index=False)
 

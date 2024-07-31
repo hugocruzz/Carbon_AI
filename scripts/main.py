@@ -53,9 +53,11 @@ def emphasize_and_combine_columns(df: pd.DataFrame, source_columns_emphasis: lis
 def main():
     setup_logging()
     
-    #Setup column name to embed:
+    #Setup column name to embed, it should be a list:
+    source_columns_to_embed = ["fam_ssfam_order","fam_sfam_order", "fam_fam_order", "fam_dom_order"]
     source_columns_to_embed = ["fam_dom_order", "fam_fam_order","fam_sfam_order", "fam_ssfam_order"]
-    source_columns_emphasis = ["fam_sfam_order","fam_ssfam_order"]
+    #source_columns_emphasis = ["fam_sfam_order","fam_ssfam_order"]
+    source_columns_emphasis = []
     # Load the API key
     api_key_path = r"C:\Users\cruz\API_openAI.txt"
     api_key = load_api_key(api_key_path)
@@ -77,13 +79,18 @@ def main():
     try:
         # Process source DataFrame
         logging.info("Processing source DataFrame")
-        source_df = pd.read_excel(source_path)
-        source_df = pre_process_source_df(source_columns_to_embed, source_df)
 
         corrected_df = pd.read_excel(r"data\achats_EPFL\Extraction lignes de commandes CATALYSE 2023_preprocessed.xlsx")
         corrected_df = pre_process_source_df(source_columns_to_embed, corrected_df)
-        #Drop duplicated of corrected_df
+
+        source_df = pd.read_excel(source_path)
+        origina_df = source_df.copy()
+        source_df = pre_process_source_df(source_columns_to_embed, source_df)
+
         source_df = update_dataframe_with_correction(source_df, corrected_df, key_column="Libellé article")
+
+        source_df = hierarchical_selection(source_df, source_columns_to_embed, "Family")
+        source_columns_to_embed = ["Family"]
 
         source_columns_to_translate = []
         source_df = translate_and_embed(source_df, source_columns_to_translate, source_columns_to_embed, source_translated_file, source_embedded_file, api_key)

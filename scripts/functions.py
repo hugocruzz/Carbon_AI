@@ -1,31 +1,45 @@
 from tableauhyperapi import HyperProcess, Connection, Telemetry, TableDefinition, SqlType, Inserter, TableName, CreateMode
 import pandas as pd
 
+def hierarchical_selection(source_df,source_columns_to_embed, merged_column, reverse_col=False):
+    source_df_copy = source_df.copy()
+    source_columns_to_embed = source_columns_to_embed[::-1]
+    source_df_copy[merged_column] = source_df_copy[source_columns_to_embed[0]]
+    for col in source_columns_to_embed[1:]:
+        source_df_copy[merged_column] = source_df_copy[merged_column].combine_first(source_df_copy[col])
+
+    return source_df_copy
 def pre_process_source_df(source_columns_to_embed, source_df):
+
     source_df = source_df.dropna(subset=source_columns_to_embed,how = 'all')
-        # Remove numbers from the specified columns
+    # Remove numbers from the specified columns
     for column in source_columns_to_embed:
         source_df[column] = source_df[column].str.replace(r'\d+', '', regex=True)
     return source_df
 
 def update_dataframe_with_correction(source_df, corrected_df, key_column):
+    '''Update the source DataFrame with corrected values from the corrected DataFrame coming from a manual correction.'''
     source_df_copy = source_df.copy()
     corrected_df_copy = corrected_df.copy()
+    
     # Reset index to ensure no duplicate labels interfere with the merge
     source_df_copy.reset_index(drop=True, inplace=True)
     corrected_df_copy.reset_index(drop=True, inplace=True)
-    # Merging dataframes on 'Libellé article'
+    
+    # Merging dataframes on the key_column
     merged_df = pd.merge(source_df_copy, corrected_df_copy, on=key_column, how='left', suffixes=('', '_corrected'))
+    
     # List of columns to update
     columns_to_update = [col for col in corrected_df_copy.columns if col != key_column]
-    # Update the columns in source_df with values from corrected_df
+    
+    # Update the columns in source_df_copy with values from corrected_df
     for col in columns_to_update:
-        # Update source_df_copy[col] with merged_df[f'{col}_corrected']
         source_df_copy[col] = merged_df.apply(
-            lambda row: row[f'{col}_corrected'] if pd.notnull(row[f'{col}_corrected']) else None, axis=1
+            lambda row: row[f'{col}_corrected'] if pd.notnull(row[f'{col}_corrected']) else row[col], axis=1
         )
     
     return source_df_copy
+    
 
 def get_sqltype(dtype):
     """Convert pandas dtype to Tableau Hyper SQLType."""

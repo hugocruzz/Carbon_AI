@@ -1,6 +1,8 @@
 # Carbon AI 
 
-This repository contains scripts and utilities for integrating, translating, embedding, and matching datasets using Python and various data science libraries.
+Do you need to estimate the CO2 emission of a large dataset containing low quality description of articles ? This project is for you.
+We use AI (NLP) to translate and embed the description of the articles and then we match them with a carbon database to estimate the CO2 emission of each article.
+For now, this project is focused on academic data and therefore uses the Labo1point5 database for emission factors.
 
 ## Project Overview
 
