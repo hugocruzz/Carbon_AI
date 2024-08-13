@@ -42,7 +42,7 @@ Ensure you have the following installed:
 3. Obtain necessary API keys and place them in appropriate locations (e.g., `API_openAI.txt`).
 
 ## Usage
-
+Modify the config file to match your desires
 ### Step 1: Translate and Embed Data
 
 Modify `main_string.py` or `main.py` to accept either a string input or a DataFrame containing articles. Adjust columns and paths (input_path.yaml) as necessary.

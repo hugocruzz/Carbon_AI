@@ -1,5 +1,6 @@
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor
+import pandas as pd
 
 # Declare global variables for the model and tokenizer
 model = None
@@ -46,7 +47,7 @@ def translate(df, columns_to_translate, suffix="_translated"):
     translated_df = pd.concat(processed_chunks)
     return translated_df
 
-def translate_DB(input_data, columns_to_translate=None, output_file_name=None):
+def translate_db(input_data, columns_to_translate=None):
     import pandas as pd
 
     if isinstance(input_data, str):
@@ -70,9 +71,6 @@ def translate_DB(input_data, columns_to_translate=None, output_file_name=None):
         translated_df[column] = translated_df[f"{column}_translated"]
         translated_df.drop(columns=[f"{column}_translated"], inplace=True)
 
-    if output_file_name:
-        translated_df.to_pickle(output_file_name, index=False)
-
     return translated_df
 
 if __name__ == '__main__':
@@ -80,5 +78,5 @@ if __name__ == '__main__':
     path = r"data\achats_EPFL\Test_100_articles.xlsx"
     columns_to_translate = ["Désignation article", "Famille"]
     df = pd.read_excel(path)
-    translated_df = translate_DB(df, columns_to_translate)
+    translated_df = translate_db(df, columns_to_translate)
     translated_df.to_excel(r"data\achats/translated_test_100_articles.xlsx", index=False)

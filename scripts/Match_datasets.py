@@ -22,10 +22,11 @@ def call_api_with_retries(client, model, chunk, example_json, max_retries=5, ini
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content":
-                     f"""You are an assistant tasked with selecting the most relevant option from a list based on an 'Article name' and its description. 
-                        For each element in the provided JSON dictionary, prioritize matching the text inside asterisks (*) within the 'Article name' to the 'Options' field. 
-                        Use the rest of the text as contextual information to ensure compatibility. 
-                        Provide your output in valid JSON format. 
+                     f"""You are an assistant tasked with selecting the most relevant option in the "Options" field from a list based on an 'Article name' and its description.
+                        For each element in the provided JSON dictionary, your primary goal is to select the option that represents the broadest category encompassing the key terms found inside asterisks (*) within the 'Article name'.
+                        If the 'Article name' mentions multiple categories (e.g., biological, chemical, and gaseous), prioritize options that broadly cover all or most of these categories, rather than focusing on specific terms.
+                        Choose the option that best represents a broad category over a specific one, unless the context strongly favors specificity.
+                        Provide your output in valid JSON format.
                         The data schema should be like this: {json.dumps(example_json)}"""
                     },
                     {"role": "user", "content": json.dumps(chunk)}
@@ -52,7 +53,7 @@ def call_api_with_retries(client, model, chunk, example_json, max_retries=5, ini
         raise Exception("Failed to complete API call after multiple retries")
 
 
-def Match_datasets(df_source, df_target, top_n=10, output_path=None, gpt_model="gpt-3.5-turbo", api_key=None):
+def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", api_key=None):
     """Match source and target datasets using embeddings and GPT model."""
 
     def mapping_embeddings(df_source, df_target, top_n=10):
@@ -123,8 +124,6 @@ def Match_datasets(df_source, df_target, top_n=10, output_path=None, gpt_model="
 
     df_matched.drop(columns=["combined_source_gpt", "combined_target_x", "Article name", "embedding_x", "embedding_y"], inplace=True)
     df_matched.rename(columns={"combined_target_y": "combined_target"}, inplace=True)
-    if output_path:
-        df_matched.to_excel(output_path, index=False)
 
     df_final = pd.merge(df_source, df_matched, on="combined", suffixes=('', '_unique'))
     return df_final
@@ -136,4 +135,4 @@ if __name__ == "__main__":
     source_path = r"data\Results\test_dataset.pkl"
     target_path = r"data\NACRES_embedded.pkl"
     output_path = r"data\Results/test_translated_gpt_o.xlsx"
-    Match_datasets(api_key=read_api_key)
+    match_datasets(api_key=read_api_key)

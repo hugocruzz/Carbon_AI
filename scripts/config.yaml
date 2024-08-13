@@ -1,0 +1,30 @@
+data_paths:
+  source_file : "data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023.xlsx"
+  source_file_manual_correction: "data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023_manual_correction.xlsx"
+  target_file: 'data/Raw/Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx'
+  output_file : "data/Results/EPFL_CO2_2023.xlsx"
+columns:
+  date_column: "Date de commande"
+  currency_column: "Devise"
+  amount_column: "Montant total"
+  source_columns_to_embed: ["fam_dom_order", "fam_fam_order","fam_sfam_order", "fam_ssfam_order"]
+  source_columns_emphasis: []
+  source_columns_to_translate: []
+
+  target_columns_to_translate: []
+  target_columns_to_embed: ["nacres.description.en", "useeio.description", "module", "category"]
+  target_columns_emphasis: ["nacres.description.en"]
+
+  key_manual_column: "Libellé article" #Leave empty if no manual correction
+  hierarchical_selection_column_name: "Family" #Leave empty if no hirerarchical selection
+  
+  emission_factor_column: "per1p5.ef.kg.co2e.per.euro"
+  target_columns_to_keep: 
+    - "nacres.code"
+    - "method"
+    - "per1p5.uncertainty.attr.kg.co2e.per.euro"
+    - "per1p5.uncertainty.80pct.kg.co2e.per.euro"
+
+currency_settings:
+  target_currency: "EUR"
+  target_inflation_year: "2019"

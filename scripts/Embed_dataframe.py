@@ -2,7 +2,7 @@ import pandas as pd
 from openai import OpenAI
 import os 
 
-def embed_dataframe(df, embedding_column_name, combined_column_name="combined", output_embedding_name="embedding", api_key=None, output_file_name=None, embedding_model="text-embedding-ada-002"):
+def embed_dataframe(df, embedding_column_name, combined_column_name="combined", output_embedding_name="embedding", api_key=None, embedding_model="text-embedding-ada-002"):
     """Embed dataframe columns using OpenAI embeddings."""
     
     client = OpenAI(api_key=api_key)
@@ -30,8 +30,6 @@ def embed_dataframe(df, embedding_column_name, combined_column_name="combined", 
     df_unique = pd.DataFrame(df_unique, columns=[combined_column_name])
     df_unique[output_embedding_name] = batch_embeddings(df_unique[combined_column_name], batch_size=1500)
     df = df.merge(df_unique, left_on=combined_column_name, right_on=combined_column_name)
-    if output_file_name:
-        df.to_pickle(output_file_name)
     return df
 
 if __name__ == '__main__':

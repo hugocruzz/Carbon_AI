@@ -1,3 +1,0 @@
-source_file : "data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023.xlsx"
-target_file: 'data/Raw/Target_PER1p5_nacres_fe_database_v1-0-2023.xlsx'
-output_file : "data/Results/EPFL_CO2_2023.xlsx"

@@ -56,7 +56,7 @@ def check_semantic_similarity_batch(df, combined_col='combined', target_col='com
     text_pairs = df[[combined_col, target_col]].values.tolist()
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     flags = []
-    
+    rating = []
     for i in range(0, len(text_pairs), batch_size):
         batch_pairs = text_pairs[i:i+batch_size]
         chunk = {j: {"Article name": pair[0], "Option": pair[1]} for j, pair in enumerate(batch_pairs)}
@@ -72,16 +72,24 @@ def check_semantic_similarity_batch(df, combined_col='combined', target_col='com
             logging.error(f"Failed to retrieve data: {e}")
             flags.extend([False] * len(chunk))
             continue
-
-        for key in data_json.keys():
-            flags.append(data_json[key]["Semantic match"].strip().lower() == 1)
-
+        rating.extend([item["Semantic match"] for item in data_json.values()])
+        flags.append([item["Semantic match"] == 1 for item in data_json.values()])
+    # Flatten the list of lists
+    flags = [item for sublist in flags for item in sublist]
+    rating = [item for sublist in rating for item in sublist]
     df['Flag'] = pd.Series(flags, index=df.index)
+    df['Rating'] = pd.Series(rating, index=df.index)
     return df
 
 def find_semantic_mismatches_batch(df, combined_col='combined', target_col='combined_target', batch_size=10, model='gpt-4o-mini'):
-    df_result = check_semantic_similarity_batch(df, combined_col, target_col, batch_size, model)
-    return df_result
+    df_unique = df.drop_duplicates(subset=["combined"])
+    df_result = check_semantic_similarity_batch(df_unique, combined_col, target_col, batch_size, model)
+    # Select only the new columns to merge, keeping "combined" as the key
+    new_columns = [col for col in df_result.columns if col not in df.columns or col == "combined"]
+
+    # Merge only with the selected new columns, avoiding duplicates
+    df_merged = df.merge(df_result[new_columns], on="combined", how="left")
+    return df_merged
 
 # Example usage
 if __name__ == "__main__":
@@ -92,14 +100,9 @@ if __name__ == "__main__":
     api_key_path = r"C:\Users\cruz\API_openAI.txt"
     os.environ["OPENAI_API_KEY"] =  load_api_key(api_key_path)
     # Process the DataFrame in batches and add the 'Flag' column
-    #Create df unique based on "combined" and merge it back afterwards
-    df_unique = df.drop_duplicates(subset=["combined"])
-    result_df = find_semantic_mismatches_batch(df_unique, batch_size=200)
-    df = df.merge(result_df, on="combined")
-    print(result_df.head())
+    df_merged = find_semantic_mismatches_batch(df, batch_size=200)
 
     # Optionally, save the result to a file
-
     output_path = source_path.replace(".xlsx", "_checked.xlsx")
-    result_df.to_excel(output_path, index=False)
+    df_merged.to_excel(output_path, index=False)
 
