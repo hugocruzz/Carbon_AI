@@ -22,7 +22,7 @@
     <WindowsPersistSimpleIdentifiers />
     <ZoneBackgroundTransparency />
   </document-format-change-manifest>
-  <repository-location id='CATALYSE_2023_CO2' path='/workbooks' revision='2.5' />
+  <repository-location id='CATALYSE_2023_CO2' path='/workbooks' revision='2.6' />
   <preferences>
     <preference name='ui.encoding.shelf.height' value='24' />
     <preference name='ui.shelf.height' value='26' />
@@ -2995,6 +2995,10 @@
             <column-instance column='[combined_target]' derivation='None' name='[none:combined_target:nk]' pivot='key' type='nominal' />
             <column-instance column='[Calculation_587156842449764352]' derivation='Sum' name='[sum:Calculation_587156842449764352:qk]' pivot='key' type='quantitative' />
           </datasource-dependencies>
+          <filter class='quantitative' column='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]' included-values='in-range'>
+            <min>1.0</min>
+            <max>5.0</max>
+          </filter>
           <computed-sort column='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[none:combined:nk]' direction='ASC' using='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]' />
           <filter class='quantitative' column='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]' included-values='in-range'>
             <min>0.00020588041147418307</min>
@@ -3002,6 +3006,7 @@
           </filter>
           <slices>
             <column>[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]</column>
+            <column>[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]</column>
           </slices>
           <aggregation value='true' />
         </view>
@@ -3245,8 +3250,8 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
         <devicelayout auto-generated='true' name='Phone'>
           <size maxheight='1300' minheight='1300' sizing-mode='vscroll' />
           <zones>
-            <zone h='100000' id='53' type-v2='layout-basic' w='100000' x='0' y='0'>
-              <zone h='98214' id='52' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
+            <zone h='100000' id='55' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98214' id='54' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
                 <zone fixed-size='40' h='6027' id='49' is-fixed='true' name='Total' show-title='false' w='99064' x='468' y='893'>
                   <zone-style>
                     <format attr='border-color' value='#000000' />
@@ -3470,8 +3475,8 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
         <devicelayout auto-generated='true' name='Phone'>
           <size maxheight='1200' minheight='1200' sizing-mode='vscroll' />
           <zones>
-            <zone h='100000' id='53' type-v2='layout-basic' w='100000' x='0' y='0'>
-              <zone h='98214' id='52' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
+            <zone h='100000' id='55' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98214' id='54' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
                 <zone fixed-size='40' h='6027' id='49' is-fixed='true' name='Total' show-title='false' w='99064' x='468' y='893'>
                   <zone-style>
                     <format attr='border-color' value='#000000' />
@@ -3572,15 +3577,56 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
     <dashboard _.fcp.AccessibleZoneTabOrder.true...enable-sort-zone-taborder='true' name='Check_algorithm_performance'>
       <style />
       <size sizing-mode='automatic' />
+      <datasources>
+        <datasource caption='EPFL_CO2_2023 Extract' name='federated.1jh0tjm1nah42k17c8kvs16hlhuk' />
+      </datasources>
+      <datasource-dependencies datasource='federated.1jh0tjm1nah42k17c8kvs16hlhuk'>
+        <column caption='CO2e t' datatype='real' name='[Calculation_587156842449764352]' role='measure' type='quantitative'>
+          <calculation class='tableau' formula='[CO2e]/1000' />
+        </column>
+        <column datatype='integer' name='[Rating]' role='measure' type='quantitative' />
+        <column-instance column='[Rating]' derivation='Avg' name='[avg:Rating:qk]' pivot='key' type='quantitative' />
+        <column-instance column='[Calculation_587156842449764352]' derivation='Sum' name='[sum:Calculation_587156842449764352:qk]' pivot='key' type='quantitative' />
+      </datasource-dependencies>
       <zones>
         <zone h='100000' id='4' type-v2='layout-basic' w='100000' x='0' y='0'>
-          <zone h='98214' id='3' name='matching' w='99064' x='468' y='893'>
-            <zone-style>
-              <format attr='border-color' value='#000000' />
-              <format attr='border-style' value='none' />
-              <format attr='border-width' value='0' />
-              <format attr='margin' value='4' />
-            </zone-style>
+          <zone h='98214' id='41' param='horz' type-v2='layout-flow' w='99064' x='468' y='893'>
+            <zone h='98214' id='39' type-v2='layout-basic' w='89702' x='468' y='893'>
+              <zone h='98214' id='3' name='matching' w='89702' x='468' y='893'>
+                <zone-style>
+                  <format attr='border-color' value='#000000' />
+                  <format attr='border-style' value='none' />
+                  <format attr='border-width' value='0' />
+                  <format attr='margin' value='4' />
+                </zone-style>
+              </zone>
+            </zone>
+            <zone fixed-size='160' h='98214' id='40' is-fixed='true' param='vert' type-v2='layout-flow' w='9362' x='90170' y='893'>
+              <zone h='7701' id='42' name='matching' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]' type-v2='filter' values='database' w='9362' x='90170' y='893'>
+                <zone-style>
+                  <format attr='border-color' value='#000000' />
+                  <format attr='border-style' value='none' />
+                  <format attr='border-width' value='0' />
+                  <format attr='margin' value='4' />
+                </zone-style>
+              </zone>
+              <zone h='7701' id='44' name='matching' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]' type-v2='filter' values='database' w='9362' x='90170' y='8594'>
+                <zone-style>
+                  <format attr='border-color' value='#000000' />
+                  <format attr='border-style' value='none' />
+                  <format attr='border-width' value='0' />
+                  <format attr='margin' value='4' />
+                </zone-style>
+              </zone>
+              <zone h='7255' id='43' name='matching' pane-specification-id='0' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]' type-v2='color' w='9362' x='90170' y='16295'>
+                <zone-style>
+                  <format attr='border-color' value='#000000' />
+                  <format attr='border-style' value='none' />
+                  <format attr='border-width' value='0' />
+                  <format attr='margin' value='4' />
+                </zone-style>
+              </zone>
+            </zone>
           </zone>
           <zone-style>
             <format attr='border-color' value='#000000' />
@@ -3594,9 +3640,36 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
         <devicelayout auto-generated='true' name='Phone'>
           <size maxheight='700' minheight='700' sizing-mode='vscroll' />
           <zones>
-            <zone h='100000' id='38' type-v2='layout-basic' w='100000' x='0' y='0'>
-              <zone h='98214' id='37' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
-                <zone fixed-size='280' h='98214' id='3' is-fixed='true' name='matching' w='99064' x='468' y='893'>
+            <zone h='100000' id='46' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98214' id='45' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
+                <zone h='7701' id='42' name='matching' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]' type-v2='filter' values='database' w='9362' x='90170' y='893'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='7701' id='44' name='matching' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]' type-v2='filter' values='database' w='9362' x='90170' y='8594'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone fixed-size='280' h='98214' id='3' is-fixed='true' name='matching' w='89702' x='468' y='893'>
+                  <zone-style>
+                    <format attr='border-color' value='#000000' />
+                    <format attr='border-style' value='none' />
+                    <format attr='border-width' value='0' />
+                    <format attr='margin' value='4' />
+                    <format attr='padding' value='0' />
+                  </zone-style>
+                </zone>
+                <zone h='7255' id='43' name='matching' pane-specification-id='0' param='[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[sum:Calculation_587156842449764352:qk]' type-v2='color' w='9362' x='90170' y='16295'>
                   <zone-style>
                     <format attr='border-color' value='#000000' />
                     <format attr='border-style' value='none' />
@@ -3724,8 +3797,8 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
         <devicelayout auto-generated='true' name='Phone'>
           <size maxheight='1200' minheight='1200' sizing-mode='vscroll' />
           <zones>
-            <zone h='100000' id='64' type-v2='layout-basic' w='100000' x='0' y='0'>
-              <zone h='98214' id='63' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
+            <zone h='100000' id='66' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98214' id='65' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
                 <zone fixed-size='44' h='6473' id='62' is-fixed='true' name='Total_specific' show-title='false' w='75511' x='468' y='893'>
                   <zone-style>
                     <format attr='border-color' value='#000000' />
@@ -3917,8 +3990,8 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
         <devicelayout auto-generated='true' name='Phone'>
           <size maxheight='750' minheight='750' sizing-mode='vscroll' />
           <zones>
-            <zone h='100000' id='50' type-v2='layout-basic' w='100000' x='0' y='0'>
-              <zone h='98214' id='49' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
+            <zone h='100000' id='52' type-v2='layout-basic' w='100000' x='0' y='0'>
+              <zone h='98214' id='51' param='vert' type-v2='layout-flow' w='99064' x='468' y='893'>
                 <zone fixed-size='114' h='15287' id='8' is-fixed='true' name='Total_informatic' show-title='false' w='79169' x='468' y='893'>
                   <zone-style>
                     <format attr='border-color' value='#000000' />
@@ -4004,7 +4077,7 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
       <active id='3' />
       <simple-id uuid='{D0203A18-746B-4261-ACAD-1993F4A50FFC}' />
     </window>
-    <window class='dashboard' name='Broad_view'>
+    <window class='dashboard' maximized='true' name='Broad_view'>
       <viewpoints>
         <viewpoint name='Total' />
         <viewpoint name='bubbles_compte_budgetaire' />
@@ -4050,7 +4123,7 @@ Rating: <[federated.1jh0tjm1nah42k17c8kvs16hlhuk].[avg:Rating:qk]>]]></run>
       <active id='8' />
       <simple-id uuid='{E7172638-8C03-406C-A37A-7C48169A1210}' />
     </window>
-    <window class='worksheet' maximized='true' name='matching'>
+    <window class='worksheet' name='matching'>
       <cards>
         <edge name='left'>
           <strip size='160'>

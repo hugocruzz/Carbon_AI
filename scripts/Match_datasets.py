@@ -9,7 +9,6 @@ import logging
 from difflib import get_close_matches
 from openai import OpenAIError
 
-logging.basicConfig(level=logging.INFO)
 
 def call_api_with_retries(client, model, chunk, example_json, max_retries=5, initial_delay=1):
     """
@@ -232,12 +231,10 @@ def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", ap
     df_unique.drop(columns=["similarity_scores", "Options"], inplace=True)
 
     # Step 3: Use GPT to choose the best match
-    #df_processed = choose_best_match_gpt(df_dict, model=gpt_model)
-    #df_processed.to_pickle("data/Results/processed.pkl")
-    df_processed = pd.read_pickle("data/Results/processed.pkl").reset_index(drop=True)
-    df_unique.rename(columns={"Article name": "combined"}, inplace=True)
+    df_processed = choose_best_match_gpt(df_dict, model=gpt_model)
 
     # Step 4: Merge results and rename columns
+    df_unique.rename(columns={"Article name": "combined"}, inplace=True)
     df_results = df_unique.reset_index(drop=True).merge(df_processed, left_index=True, right_index=True)
     df_results.rename(columns={"Chosen option": "combined_target_gpt"}, inplace=True)
 

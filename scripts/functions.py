@@ -167,8 +167,12 @@ def df_to_hyper(df, output_path):
             with Inserter(connection, table_definition) as inserter:
                 inserter.add_rows(receiver_data)
                 inserter.execute()
-                
-def load_api_key(api_key_path: str) -> str:
-    """Load API key from a file."""
-    with open(api_key_path, 'r') as f:
-        return f.readline().strip()
+    
+
+def assign_columns(api_key, columns, source_df):
+    column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
+    columns["date_column"] = column_label["date_column"]
+    columns["amount_column"] = column_label["amount_column"]
+    columns["currency_column"] = column_label["unit_column"]
+    columns["source_columns_to_embed"] = column_label["source_columns_to_embed"]
+    return columns

@@ -3,16 +3,18 @@ data_paths:
   source_file_manual_correction: "data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023_manual_correction.xlsx"
   target_file: 'data/Raw/Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx'
   output_file : "data/Results/EPFL_CO2_2023.xlsx"
+
 columns:
-  date_column: "Date de commande"
+  automated_column_labeling: False
+  date_column: "Date de commande" #Leave empty if 
   currency_column: "Devise"
   amount_column: "Montant total"
   source_columns_to_embed: ["fam_dom_order", "fam_fam_order","fam_sfam_order", "fam_ssfam_order"]
-  source_columns_emphasis: []
-  source_columns_to_translate: []
-  source_confidential_column: ["Libellé article"]
+  source_columns_emphasis: [] #Leave empty if no column to prioritize
+  source_columns_to_translate: [] #Leave empty if you don't want any translation
+  source_confidential_column: ["Libellé article"] #Leave empty if no confidentiality (this is only used for automated column recognition)
   
-  target_columns_to_translate: []
+  target_columns_to_translate: [] #Leave empty if you don't want any translation
   target_columns_to_embed: ["nacres.description.en", "useeio.description", "module", "category"]
   target_columns_emphasis: ["nacres.description.en"]
 

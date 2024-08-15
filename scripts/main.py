@@ -9,7 +9,7 @@ from translate_db import translate_db
 from embed_dataframe import embed_dataframe
 from match_datasets import match_datasets
 from currency_converter import currency_converter
-from functions import load_global_env, get_file_paths, pre_process_source_df, update_dataframe_with_correction, hierarchical_selection, emphasize_and_combine_columns, df_to_hyper, find_columns_labels
+from functions import load_global_env, get_file_paths, pre_process_source_df, update_dataframe_with_correction, hierarchical_selection, emphasize_and_combine_columns, df_to_hyper, assign_columns
 from check_matching_errors import find_semantic_mismatches_batch
 
 
@@ -25,13 +25,6 @@ def load_config(config_file: str = "config.yaml") -> Config:
         config_data = yaml.safe_load(file)
     return Config(**config_data)
 
-def assign_columns(api_key, columns, source_df):
-    column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
-    columns["date_column"] = column_label["date_column"]
-    columns["amount_column"] = column_label["amount_column"]
-    columns["currency_column"] = column_label["unit_column"]
-    columns["source_columns_to_embed"] = column_label["source_columns_to_embed"]
-    return columns
 
 def translate_and_embed(df: pd.DataFrame, 
                         columns_to_translate: List[str], 
@@ -56,30 +49,23 @@ def translate_and_embed(df: pd.DataFrame,
     return df
 
 
-def main(reset: bool = False, semantic_error_estimation: bool = True, automated_column_labeling: bool = True):
-
-    #1) Check traduction NACRES: Vient du fait que j'ajoute les domaines et que je les traduit avec un algorithme pas toujours aussi performant, quelques modifications faites à la main.
-    #2) ramener tout en CHF: OK
-    #3) envoyer unité organisationnelle à l'excel: OK, Integrer l'institut après reponse de Juliane 
-    #4) Check des incertitudes calculs: OK, a faire sur TAbleau maintenant 
-    #5) revoir labo1.5
-    #6) repondre à pierre
-
-    # Load configuration
-    config = load_config("scripts/config.yaml")
+def main(reset: bool = False, semantic_error_estimation: bool = True):
+    
+    logging.basicConfig(level=logging.INFO)
 
     # Load the API key
     load_global_env()
     os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI')
     os.environ["FRED_API_KEY"] = os.getenv('FRED')
-    # Set paths
-    paths = config.data_paths
 
-    # Extract column settings
+    # Load configuration
+    config = load_config("scripts/config.yaml")
+    paths = config.data_paths
     columns = config.columns
-    
-    # Extract currency settings
     currency_settings = config.currency_settings
+    automated_column_labeling = columns["automated_column_labeling"]
+    #IS it possible to set a bool in a yaml file?
+    automated_column_labeling: bool = config.automated_column_labeling
 
     paths["source_translated_file"] = get_file_paths(paths["source_file"], "_translated.h5")
     paths["source_embedded_file"] = get_file_paths(paths["source_file"], "_embedded.h5")
@@ -106,6 +92,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, automated_
                 source_df = update_dataframe_with_correction(source_df, corrected_df, key_column=columns["key_manual_column"])
             else:
                 print("No Manual correction implemented. \nPlease provide a key merging column if you want to update the source DataFrame with corrected values.")
+
             if columns["hierarchical_selection_column_name"]:
                 source_df = hierarchical_selection(source_df, columns["source_columns_to_embed"], columns["hierarchical_selection_column_name"])
                 source_columns_to_embed = [columns["hierarchical_selection_column_name"]]
@@ -191,4 +178,4 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, automated_
         raise
 
 if __name__ == '__main__':
-    main(reset=True, semantic_error_estimation=True, automated_column_labeling=False)
+    main(reset=True, semantic_error_estimation=True)

@@ -3,3 +3,6 @@ data/achats_EPFL
 data/Deprecated
 data/*.pkl
 data/Results
+data/Raw
+flask_session
+figures

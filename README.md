@@ -39,10 +39,12 @@ Ensure you have the following installed:
 ```pip install -r requirements.txt```
 
 
-3. Obtain necessary API keys and place them in appropriate locations (e.g., `API_openAI.txt`).
+3. Obtain necessary API keys and place them in appropriate locations to open them in the scripts:
+- FRED API key: https://fred.stlouisfed.org/
+- OpenAI API key: https://beta.openai.com/account/api-keys
 
-## Usage
-Modify the config file to match your desires
+4. Modify the config file to match your desires
+
 ### Step 1: Translate and Embed Data
 
 Modify `main_string.py` or `main.py` to accept either a string input or a DataFrame containing articles. Adjust columns and paths (input_path.yaml) as necessary.
@@ -62,10 +64,10 @@ Refine translations, embeddings, or matching strategies based on specific requir
 
 Here's how to run the main pipeline for a string input:
 
-```python main_string.py```
+```python main.py```
 
 
-Ensure to adjust configurations and paths in the scripts (`main_string.py`, `Translate_DB.py`, `Embed_dataframe.py`, `Match_datasets.py`) based on your environment and dataset characteristics.
+Ensure to adjust configurations and paths in the scripts (`main.py`, `Translate_DB.py`, `Embed_dataframe.py`, `Match_datasets.py`) based on your environment and dataset characteristics.
 
 ## License
 
