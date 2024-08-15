@@ -10,7 +10,8 @@ columns:
   source_columns_to_embed: ["fam_dom_order", "fam_fam_order","fam_sfam_order", "fam_ssfam_order"]
   source_columns_emphasis: []
   source_columns_to_translate: []
-
+  source_confidential_column: ["Libellé article"]
+  
   target_columns_to_translate: []
   target_columns_to_embed: ["nacres.description.en", "useeio.description", "module", "category"]
   target_columns_emphasis: ["nacres.description.en"]
@@ -24,6 +25,7 @@ columns:
     - "method"
     - "per1p5.uncertainty.attr.kg.co2e.per.euro"
     - "per1p5.uncertainty.80pct.kg.co2e.per.euro"
+    - "per1p5.ef.kg.co2e.per.euro"
 
 currency_settings:
   target_currency: "EUR"

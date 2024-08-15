@@ -76,7 +76,6 @@ def check_semantic_similarity_batch(df, combined_col='combined', target_col='com
         flags.append([item["Semantic match"] == 1 for item in data_json.values()])
     # Flatten the list of lists
     flags = [item for sublist in flags for item in sublist]
-    rating = [item for sublist in rating for item in sublist]
     df['Flag'] = pd.Series(flags, index=df.index)
     df['Rating'] = pd.Series(rating, index=df.index)
     return df

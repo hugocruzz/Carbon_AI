@@ -5,49 +5,51 @@ import json
 import yaml
 import os 
 from dotenv import load_dotenv
+from openai import OpenAI
 
-def df_column_retriever(client, model, prompt, example_json, max_retries=5, initial_delay=1):
+def find_columns_labels(source_df, api_key=None, description_col_nb=2, model = "gpt-4o-mini"):
+    df_head = source_df.head().to_json(orient='records')  
+    Category_name_possibilities = ["Description", "Sub_category", "Category", "Sub_family", "Family", "sub_domain", "domain"]   
+    example_json = {"date_column": "Date", "amount_column": "Amount", "unit_column": "Currency", "description_column": Category_name_possibilities[:description_col_nb]}
+    prompt = f"""
+    You are given a DataFrame with the following head: {df_head}. Your task is to identify and provide the column names that best represent the following information:
+
+    1. **Date of Purchase**: The column that represents the date on which the purchase was made.
+    2. **Amount**: The column that specifies the amount (money for example) involved in the purchase.
+    3. **Unit**: The column that indicates the unit of the article purchased.
+    4. **Description**: Columns that describe the article in a way understandable by a human, the values in these column should be a text description, not a number.
+
+    Please consider both the column labels and the values they contain to ensure accurate identification. From the DataFrame, select {description_col_nb} columns that collectively provide the most detailed description of the purchase. Assign them as:
+
+    - "date_column"
+    - "amount_column"
+    - "unit_column"
+    - "description_column"
+
+    Provide your response in a valid JSON format following this schema: {json.dumps(example_json)}
+    """
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     success = False
-    retries = 0
-    delay = initial_delay
 
-    while not success and retries < max_retries:
-        try:
-            chat_completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content":
-                     f"""You are an assistant tasked with selecting the most relevant option in the "Options" field from a list based on an 'Article name' and its description.
-                        For each element in the provided JSON dictionary, your primary goal is to select the option that represents the broadest category encompassing the key terms found inside asterisks (*) within the 'Article name'.
-                        If the 'Article name' mentions multiple categories (e.g., biological, chemical, and gaseous), prioritize options that broadly cover all or most of these categories, rather than focusing on specific terms.
-                        Choose the option that best represents a broad category over a specific one, unless the context strongly favors specificity.
-                        Provide your output in valid JSON format.
-                        The data schema should be like this: {json.dumps(example_json)}"""
-                    },
-                    {"role": "user", "content": json.dumps(chunk)}
-                ]
-            )
-            data = chat_completion.choices[0].message.content
-            data_json = json.loads(data)
-            success = True
-        except OpenAIError as e:
-            logging.error(f"API call failed: {e}. Retrying in {delay} seconds...")
-            time.sleep(delay)
-            retries += 1
-            delay *= 2  # Exponential backoff
-        except json.JSONDecodeError as e:
-            logging.error(f"JSON decode error: {e}")
-            break
-        except Exception as e:
-            logging.error(f"An unexpected error occurred: {e}")
-            break
+    while not success:
+        chat_completion = client.chat.completions.create(
+                    model=model,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": json.dumps(df_head)}
+                    ]
+                )
+        
+        data = chat_completion.choices[0].message.content
+        data_json = json.loads(data)
+        success = True
+    #Change key name of "description_column" to "source_columns_to_embed"
+    data_json["source_columns_to_embed"] = data_json.pop("description_column")
 
-    if success:
-        return data_json
-    else:
-        raise Exception("Failed to complete API call after multiple retries")
-    
+    return data_json
+
 def load_global_env():
     env_path = os.path.expanduser('~/global_env/.env')
     if os.path.exists(env_path):

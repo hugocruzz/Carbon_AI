@@ -9,7 +9,7 @@ from translate_db import translate_db
 from embed_dataframe import embed_dataframe
 from match_datasets import match_datasets
 from currency_converter import currency_converter
-from functions import load_global_env, get_file_paths, pre_process_source_df, update_dataframe_with_correction, hierarchical_selection, emphasize_and_combine_columns, df_to_hyper
+from functions import load_global_env, get_file_paths, pre_process_source_df, update_dataframe_with_correction, hierarchical_selection, emphasize_and_combine_columns, df_to_hyper, find_columns_labels
 from check_matching_errors import find_semantic_mismatches_batch
 
 
@@ -25,6 +25,13 @@ def load_config(config_file: str = "config.yaml") -> Config:
         config_data = yaml.safe_load(file)
     return Config(**config_data)
 
+def assign_columns(api_key, columns, source_df):
+    column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
+    columns["date_column"] = column_label["date_column"]
+    columns["amount_column"] = column_label["amount_column"]
+    columns["currency_column"] = column_label["unit_column"]
+    columns["source_columns_to_embed"] = column_label["source_columns_to_embed"]
+    return columns
 
 def translate_and_embed(df: pd.DataFrame, 
                         columns_to_translate: List[str], 
@@ -36,40 +43,48 @@ def translate_and_embed(df: pd.DataFrame,
     if not os.path.exists(embed_file):
         if not os.path.exists(translate_file) and columns_to_translate:
             df = translate_db(df, columns_to_translate)
-            df.to_pickle(translate_file)
+            df.to_hdf(translate_file, key='df', mode='w', complevel=9, complib='blosc')
+        elif columns_to_translate:
+            df = pd.read_hdf(translate_file, key='df')
         else:
-            df = pd.read_pickle(translate_file)
-        
-        df = embed_dataframe(df, columns_to_embed, combined_column_name="combined",
-                             output_embedding_name="embedding", api_key=api_key, embedding_model="text-embedding-3-small")
-        df.to_pickle(embed_file)
+            df = embed_dataframe(df, columns_to_embed, combined_column_name="combined",
+                                output_embedding_name="embedding", api_key=api_key, embedding_model="text-embedding-3-small")
+            df.to_hdf(embed_file, key='df', mode='w', complevel=9, complib='blosc')
     else:
-        df = pd.read_pickle(embed_file)
+        df = pd.read_hdf(embed_file, key='df')
     
     return df
 
 
-def main(reset: bool = False, semantic_error_estimation: bool = True):
+def main(reset: bool = False, semantic_error_estimation: bool = True, automated_column_labeling: bool = True):
+
+    #1) Check traduction NACRES: Vient du fait que j'ajoute les domaines et que je les traduit avec un algorithme pas toujours aussi performant, quelques modifications faites à la main.
+    #2) ramener tout en CHF: OK
+    #3) envoyer unité organisationnelle à l'excel: OK, Integrer l'institut après reponse de Juliane 
+    #4) Check des incertitudes calculs: OK, a faire sur TAbleau maintenant 
+    #5) revoir labo1.5
+    #6) repondre à pierre
+
     # Load configuration
     config = load_config("scripts/config.yaml")
 
     # Load the API key
     load_global_env()
-    api_key = os.getenv('OPENAI')
-
+    os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI')
+    os.environ["FRED_API_KEY"] = os.getenv('FRED')
     # Set paths
     paths = config.data_paths
 
     # Extract column settings
     columns = config.columns
-
+    
     # Extract currency settings
     currency_settings = config.currency_settings
 
-    paths["source_translated_file"] = get_file_paths(paths["source_file"], "_translated.pkl")
-    paths["source_embedded_file"] = get_file_paths(paths["source_file"], "_embedded.pkl")
-    paths["target_tranlated_file"] = get_file_paths(paths["target_file"], "_translated.pkl")
-    paths["target_embedded_file"] = get_file_paths(paths["target_file"], "_embedded.pkl")
+    paths["source_translated_file"] = get_file_paths(paths["source_file"], "_translated.h5")
+    paths["source_embedded_file"] = get_file_paths(paths["source_file"], "_embedded.h5")
+    paths["target_translated_file"] = get_file_paths(paths["target_file"], "_translated.h5")
+    paths["target_embedded_file"] = get_file_paths(paths["target_file"], "_embedded.h5")
 
     try:
         if reset or not os.path.exists(paths["source_embedded_file"]):
@@ -77,16 +92,11 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
             logging.info("Processing source DataFrame")
 
             source_df = pd.read_excel(paths["source_file"])
-            from openai import OpenAI
-            df_head = source_df.head()
-            prompt = f"""You are provided with the following DataFrame head:
-                        {df_head}
-                        Identify the column that represents the "purchase date," the column that represents the "amount of money," and the columns that describe the purchase. Respond with your findings.
-                        Name them respectively: date_column, amount_column, and source_columns_to_embed.
-                        """
-            client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-            example_json = {0: {"date_column": "Date", "amount_column": "Amount", "source_columns_to_embed": ["Description"]}}
-            
+            SV_unit = pd.read_excel(r"data\achats_EPFL\SV_units.xlsx")[["Unité Organisationnelle", "Institut"]]
+            source_df = source_df.merge(SV_unit, on="Unité Organisationnelle", how="left")
+
+            if automated_column_labeling:       
+                columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore')) #Drop column because confidential information 
 
             source_df = pre_process_source_df(columns["source_columns_to_embed"], source_df)
 
@@ -104,26 +114,34 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
 
             source_df = translate_and_embed(source_df, columns["source_columns_to_translate"], 
                                             source_columns_to_embed, paths["source_translated_file"], 
-                                            paths["source_embedded_file"], api_key)
+                                            paths["source_embedded_file"], os.environ["OPENAI_API_KEY"])
         else:
-            source_df = pd.read_pickle(paths["source_embedded_file"])
+            source_df = pd.read_hdf(paths["source_embedded_file"], key='df')
+            SV_unit = pd.read_excel(r"data\achats_EPFL\SV_units.xlsx")[["Unité Organisationnelle", "Institut"]]
+            source_df = source_df.merge(SV_unit, on="Unité Organisationnelle", how="left")
+            if automated_column_labeling:
+                columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore'))
+
             source_df = emphasize_and_combine_columns(source_df, columns["source_columns_emphasis"], columns["source_columns_to_embed"])
 
         if reset or not os.path.exists(paths["target_embedded_file"]):
             # Process target DataFrame
             logging.info("Processing target DataFrame")
             target_df = pd.read_excel(paths["target_file"])
-            target_df[columns["target_columns_to_embed"]] = target_df[columns["target_columns_to_embed"]].str.rstrip()
+            target_df[columns["target_columns_to_embed"]]= target_df[columns["target_columns_to_embed"]].apply(lambda x: x.str.rstrip())
+
             target_df = translate_and_embed(target_df, columns["target_columns_to_translate"], 
                                             columns["target_columns_to_embed"], paths["target_translated_file"], 
-                                            paths["target_embedded_file"], api_key)
+                                            paths["target_embedded_file"], os.environ["OPENAI_API_KEY"])
         else:
-            target_df = pd.read_pickle(paths["target_embedded_file"])
+            target_df = pd.read_hdf(paths["target_embedded_file"], key='df')
             target_df = emphasize_and_combine_columns(target_df, columns["target_columns_emphasis"], columns["target_columns_to_embed"])
+            target_df = target_df.drop_duplicates(subset='combined', keep='first').reset_index(drop=True)
+
 
         # Match the datasets
         logging.info("Matching datasets")
-        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=api_key, top_n=10)
+        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10)
 
         converted_currency_serie, correct_inflation_serie = currency_converter(matched_df, 
                                           target_currency=currency_settings["target_currency"], 
@@ -131,20 +149,36 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
                                           currency_column=columns["currency_column"], 
                                           amount_column=columns["amount_column"], 
                                           target_inflation_year=currency_settings["target_inflation_year"], 
-                                          fred_api_key=os.getenv('FRED'))
+                                          fred_api_key=os.environ["FRED_API_KEY"])
+        converted_CHF_currency_serie, correct_CHF_inflation_serie = currency_converter(matched_df, 
+                                          target_currency="CHF", 
+                                          date_column=columns["date_column"], 
+                                          currency_column=columns["currency_column"], 
+                                          amount_column=columns["amount_column"], 
+                                          target_inflation_year=currency_settings["target_inflation_year"], 
+                                          fred_api_key=os.environ["FRED_API_KEY"])
 
         df_converted = matched_df.copy()
         df_converted[f'Amount in {currency_settings["target_currency"]}'] = converted_currency_serie
         df_converted[f'Amount in {currency_settings["target_currency"]} corrected inflation in {currency_settings["target_inflation_year"]}'] = correct_inflation_serie
+        df_converted[f'Amount in CHF'] = converted_CHF_currency_serie
+
 
         df_converted["CO2e"] = df_converted[f'Amount in {currency_settings["target_currency"]} corrected inflation in {currency_settings["target_inflation_year"]}'] * df_converted[columns["emission_factor_column"]]
+        # Calculate the total uncertainty factor for each row
+        df_converted['total_uncertainty_factor'] = df_converted['per1p5.uncertainty.attr.kg.co2e.per.euro'] + \
+                                        (0.8 * df_converted['per1p5.uncertainty.80pct.kg.co2e.per.euro'])
+
+        # Calculate the uncertainty in carbon emissions for each row
+        df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
 
         columns_to_keep = list(source_df.columns) + [
-            "combined_target",
+            "combined_target", 'total_uncertainty_factor', 'uncertainty_carbon_emissions', 'Amount in CHF', f'Amount in {currency_settings["target_currency"]}', 
             f'Amount in {currency_settings["target_currency"]} corrected inflation in {currency_settings["target_inflation_year"]}', "CO2e"
         ] + columns["target_columns_to_keep"]
+
         final_df = df_converted[columns_to_keep].drop(columns=["embedding"])
-        
+        #Filter final_df with "Entité de gestion"=="002000School of Life Sciences", extract only ["Unité Organisationnelle", "Entité de gestion"], make them unique depending on 
         if semantic_error_estimation: 
             logging.info("Estimating semantic errors")
             flagged_df = find_semantic_mismatches_batch(final_df, batch_size=200)
@@ -156,6 +190,5 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
         logging.error(f"An error occurred: {e}")
         raise
 
-
 if __name__ == '__main__':
-    main(reset=False, semantic_error_estimation=True)
+    main(reset=True, semantic_error_estimation=True, automated_column_labeling=False)
