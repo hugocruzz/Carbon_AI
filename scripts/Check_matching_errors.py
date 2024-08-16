@@ -96,8 +96,6 @@ if __name__ == "__main__":
     source_path =r"data\Results\EPFL_CO2_2023.xlsx"
     df = pd.read_excel(source_path)
     
-    api_key_path = r"C:\Users\cruz\API_openAI.txt"
-    os.environ["OPENAI_API_KEY"] =  load_api_key(api_key_path)
     # Process the DataFrame in batches and add the 'Flag' column
     df_merged = find_semantic_mismatches_batch(df, batch_size=200)
 

@@ -7,10 +7,10 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-def find_columns_labels(source_df, api_key=None, description_col_nb=2, model = "gpt-4o-mini"):
+def find_columns_labels(source_df, api_key=None, contextual_columns_nb=1, model = "gpt-4o-mini"):
     df_head = source_df.head().to_json(orient='records')  
-    Category_name_possibilities = ["Description", "Sub_category", "Category", "Sub_family", "Family", "sub_domain", "domain"]   
-    example_json = {"date_column": "Date", "amount_column": "Amount", "unit_column": "Currency", "description_column": Category_name_possibilities[:description_col_nb]}
+    Category_name_possibilities = ["Sub_category", "Category", "Sub_family", "Family", "sub_domain", "domain"]   
+    example_json = {"date_column": "Date", "amount_column": "Amount", "unit_column": "Currency", "description_column": "Description", "contextual_columns": Category_name_possibilities[:contextual_columns_nb]}
     prompt = f"""
     You are given a DataFrame with the following head: {df_head}. Your task is to identify and provide the column names that best represent the following information:
 
@@ -18,13 +18,15 @@ def find_columns_labels(source_df, api_key=None, description_col_nb=2, model = "
     2. **Amount**: The column that specifies the amount (money for example) involved in the purchase.
     3. **Unit**: The column that indicates the unit of the article purchased.
     4. **Description**: Columns that describe the article in a way understandable by a human, the values in these column should be a text description, not a number.
+    5. **Contextual Columns**: If it exists, columns that provide additional context to the purchase, else an empty list.
 
-    Please consider both the column labels and the values they contain to ensure accurate identification. From the DataFrame, select {description_col_nb} columns that collectively provide the most detailed description of the purchase. Assign them as:
+    Please consider both the column labels and the values they contain to ensure accurate identification. From the DataFrame, select {contextual_columns_nb} columns that collectively provide the most detailed description of the purchase. Assign them as:
 
     - "date_column"
     - "amount_column"
     - "unit_column"
     - "description_column"
+    - "contextual_columns"
 
     Provide your response in a valid JSON format following this schema: {json.dumps(example_json)}
     """
@@ -45,9 +47,10 @@ def find_columns_labels(source_df, api_key=None, description_col_nb=2, model = "
         data = chat_completion.choices[0].message.content
         data_json = json.loads(data)
         success = True
-    #Change key name of "description_column" to "source_columns_to_embed"
-    data_json["source_columns_to_embed"] = data_json.pop("description_column")
-
+    #If one of the elements is empty, print a warning
+    for key in data_json.keys():
+        if not data_json[key]:
+            logging.warning(f"Warning: {key} is empty")
     return data_json
 
 def load_global_env():
@@ -170,9 +173,25 @@ def df_to_hyper(df, output_path):
     
 
 def assign_columns(api_key, columns, source_df):
-    column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
-    columns["date_column"] = column_label["date_column"]
-    columns["amount_column"] = column_label["amount_column"]
-    columns["currency_column"] = column_label["unit_column"]
-    columns["source_columns_to_embed"] = column_label["source_columns_to_embed"]
+                
+    success = False
+    attempts = 3
+    for attempt in range(attempts):
+        column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
+        
+        #Change key name of "description_column" to "source_columns_to_embed"
+        column_label["source_columns_to_embed"] = column_label.pop("description_column")
+        column_label["source_columns_emphasis"] = column_label["source_columns_to_embed"]
+        column_label["source_columns_to_embed"] = [column_label["source_columns_to_embed"]] + column_label["contextual_columns"]
+        column_label.pop("contextual_columns")
+        for key in column_label:
+            if not (columns[key]):
+                columns[key] = column_label[key]
+
+        success = all(columns[key] for key in column_label)
+        if success:
+            break
+        else:
+            logging.warning(f"Failed to assign all columns. Check if you have the following columns in your data: {column_label.keys()}, Retrying...")
+
     return columns

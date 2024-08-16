@@ -75,7 +75,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
     os.environ["FRED_API_KEY"] = os.getenv('FRED')
 
     # Load configuration
-    config = load_config("scripts/config.yaml")
+    config = load_config("scripts/EPFL_config.yaml")
     paths = config.data_paths
     columns = config.columns
     currency_settings = config.currency_settings
@@ -93,6 +93,8 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
             logging.info("Processing source DataFrame")
 
             source_df = pd.read_excel(paths["source_file"])
+            SV_unit = pd.read_excel(r"data\input_data/achats_EPFL\SV_units.xlsx")[["Unité Organisationnelle", "Institut"]]
+            source_df = source_df.merge(SV_unit, on="Unité Organisationnelle", how="left")
 
             if automated_column_labeling:       
                 columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore')) #Drop column because confidential information 
@@ -104,23 +106,23 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
                 corrected_df = pre_process_source_df(columns["source_columns_to_embed"], corrected_df)
                 source_df = update_dataframe_with_correction(source_df, corrected_df, key_column=columns["key_manual_column"])
             else:
-                print("No Manual correction implemented. Please provide a key merging column if you want to update the source DataFrame with corrected values.")
+                print("No Manual correction implemented. \nPlease provide a key merging column if you want to update the source DataFrame with corrected values.")
 
             if columns["hierarchical_selection_column_name"]:
                 source_df = hierarchical_selection(source_df, columns["source_columns_to_embed"], columns["hierarchical_selection_column_name"])
                 columns["source_columns_to_embed"] = [columns["hierarchical_selection_column_name"]]
             else:
-                print("No hierarchical selection implemented. Please provide a column name if you want to perform hierarchical selection.")
+                print("No hierarchical selection implemented. \nPlease provide a column name if you want to perform hierarchical selection.")
 
             source_df = translate_and_embed(source_df, columns["source_columns_to_translate"], 
                                             columns["source_columns_to_embed"], paths["source_translated_file"], 
                                             paths["source_embedded_file"], os.environ["OPENAI_API_KEY"])
         else:
             source_df = pd.read_hdf(paths["source_embedded_file"], key='df')
+            SV_unit = pd.read_excel(r"data\input_data/achats_EPFL\SV_units.xlsx")[["Unité Organisationnelle", "Institut"]]
+            source_df = source_df.merge(SV_unit, on="Unité Organisationnelle", how="left")
             if automated_column_labeling:
-                columns = assign_columns(os.environ["OPENAI_API_KEY"],columns,source_df.drop(columns=columns.get("source_confidential_column", []), errors='ignore'))
-
-
+                columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore'))
 
             source_df = emphasize_and_combine_columns(source_df, columns["source_columns_emphasis"], columns["source_columns_to_embed"])
 
@@ -184,7 +186,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
         # Calculate the uncertainty in carbon emissions for each row
         df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
 
-        output_columns = output_columns + ['combined_target', 'total_uncertainty_factor', 'uncertainty_carbon_emissions', 'CO2e']
+        output_columns = output_columns + ['combined_target','total_uncertainty_factor', 'uncertainty_carbon_emissions', 'CO2e']
 
         final_df = df_converted[output_columns].drop(columns=["embedding"])
 

@@ -1,8 +1,7 @@
 .env
-data/achats_EPFL
-data/Deprecated
-data/*.pkl
-data/Results
-data/Raw
-flask_session
+data/carbon_database/Cut-off Cumulative LCIA v3.10.xlsx
+data/deprecated
+data/*.h5
+data/results
+data/input_data/achats_EPFL
 figures
