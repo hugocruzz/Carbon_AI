@@ -1,8 +1,8 @@
 data_paths:
-  source_file : "data/input_data/template_data.xlsx" #Should correspond to your purchases file
+  source_file : "data/input_data/template_data_physical.xlsx" #Should correspond to your purchases file
   source_file_manual_correction: [] #[OPTIONAL] Leave empty if no manual correction needed
-  target_file: 'data/carbon_database/Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx'
-  output_file : "data/results/template_output.xlsx" #Feel free to change it
+  target_file: 'data/carbon_database/pre_processed Cut-off Cumulative LCIA v3.10.xlsx' #Should  correspond to the database file 
+  output_file : "data/results/template_ecoinvent.xlsx" #Feel free to change it
 
 columns:
   #Source data informations:
@@ -21,22 +21,19 @@ columns:
 
   #Target data informations:
   target_columns_to_translate: [] #[OPTIONAL] Leave empty if you don't want any translation
-  target_columns_to_embed: ["nacres.description.en", "useeio.description", "module", "category"]
-  target_columns_emphasis: ["nacres.description.en"] #[OPTIONAL] Leave empty if you don't want any priorization
-  emission_factor_column: "per1p5.ef.kg.co2e.per.euro"
-  target_factor_finance: True
-  target_columns_uncertainty: 'per1p5.uncertainty.attr.kg.co2e.per.euro'
-  target_columns_uncertainty_80pct: 'per1p5.uncertainty.80pct.kg.co2e.per.euro'
+  target_columns_to_embed: ["Activity Name"]
+  target_columns_emphasis: [] #[OPTIONAL] Leave empty if you don't want any priorization
+  target_factor_finance: False
+  target_columns_uncertainty: []
+  target_columns_80_uncertainty: []
+  emission_factor_column: "kg CO2-Eq"
 
   
   target_columns_to_keep: 
-    - "nacres.code"
-    - "method"
-    - "per1p5.uncertainty.attr.kg.co2e.per.euro"
-    - "per1p5.uncertainty.80pct.kg.co2e.per.euro"
-    - "per1p5.ef.kg.co2e.per.euro" #[OPTIONAL]
+    - "kg CO2-Eq"
+    - "Reference Product Name"
+    - "Activity UUID_Product UUID"
+    - "Reference Product Unit"
+    - "Geography" #[OPTIONAL]
 
-currency_settings: #Leave blank if you do not want any change in money
-  target_currency: "EUR" 
-  target_inflation_year: "2019"
-  target_currency_additional: "CHF" # [OPTIONAL] Just convert it, does not have implications in CO2e calculations
+currency_settings: 

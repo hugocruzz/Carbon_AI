@@ -126,6 +126,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
 
             source_df = emphasize_and_combine_columns(source_df, columns["source_columns_emphasis"], columns["source_columns_to_embed"])
 
+        source_df.reset_index(drop=True, inplace=True)
         if reset or not os.path.exists(paths["target_embedded_file"]):
             # Process target DataFrame
             logging.info("Processing target DataFrame")
@@ -143,7 +144,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
 
         # Match the datasets
         logging.info("Matching datasets")
-        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10)
+        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10, chunk_size=200)
         
         output_columns = list(source_df.columns) + columns["target_columns_to_keep"] 
 

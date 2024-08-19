@@ -7,6 +7,7 @@ data_paths:
 columns:
   #Source data informations:
   automated_column_labeling: False
+  contextual_nb_columns: 1 #[OPTIONAL] Leave empty if automated_column_labeling set to False
   date_column: "Date de commande" #[OPTIONAL] Leave empty if automated_column_labeling set to True
   unit_column: "Devise"  #[OPTIONAL] Leave empty if automated_column_labeling set to True
   amount_column: "Montant total"  #[OPTIONAL] Leave empty if automated_column_labeling set to True
@@ -14,14 +15,16 @@ columns:
   source_columns_emphasis: [] #[OPTIONAL] Leave empty if no column to prioritize
   source_columns_to_translate: [] #[OPTIONAL] Leave empty if you don't want any translation
   source_confidential_column: ["Libellé article"] #[OPTIONAL] Leave empty if no confidentiality (this is only used for automated column recognition)
+  key_manual_column: "Libellé article" #[OPTIONAL] Leave empty if no manual correction
+  hierarchical_selection_column_name: "Family" #[OPTIONAL] Leave empty if no hirerarchical selection
   #Target data informations:
   target_columns_to_translate: [] #[OPTIONAL] Leave empty if you don't want any translation
   target_columns_to_embed: ["nacres.description.en", "useeio.description", "module", "category"]
   target_columns_emphasis: ["nacres.description.en"] #[OPTIONAL] Leave empty if you don't want any priorization
   emission_factor_column: "per1p5.ef.kg.co2e.per.euro"
-
-  key_manual_column: "Libellé article" #[OPTIONAL] Leave empty if no manual correction
-  hierarchical_selection_column_name: "Family" #[OPTIONAL] Leave empty if no hirerarchical selection
+  target_factor_finance: True
+  target_columns_uncertainty: 'per1p5.uncertainty.attr.kg.co2e.per.euro'
+  target_columns_80_uncertainty: 'per1p5.uncertainty.80pct.kg.co2e.per.euro'
   
   target_columns_to_keep: 
     - "nacres.code"

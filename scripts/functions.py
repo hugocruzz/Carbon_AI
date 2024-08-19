@@ -17,10 +17,11 @@ def find_columns_labels(source_df, api_key=None, contextual_columns_nb=1, model 
     1. **Date of Purchase**: The column that represents the date on which the purchase was made.
     2. **Amount**: The column that specifies the amount (money for example) involved in the purchase.
     3. **Unit**: The column that indicates the unit of the article purchased.
-    4. **Description**: Columns that describe the article in a way understandable by a human, the values in these column should be a text description, not a number.
-    5. **Contextual Columns**: If it exists, columns that provide additional context to the purchase, else an empty list.
+    4. **Description**: A column that describe the article in a way understandable by a human, the values in these column should be a text description, not a number.
+    5. **Contextual Columns**: If it exists, {contextual_columns_nb} columns that provide additional context to the purchase, else an empty list.
 
-    Please consider both the column labels and the values they contain to ensure accurate identification. From the DataFrame, select {contextual_columns_nb} columns that collectively provide the most detailed description of the purchase. Assign them as:
+    Please consider both the column labels and the values they contain to ensure accurate identification. 
+    Assign them as:
 
     - "date_column"
     - "amount_column"
@@ -31,7 +32,7 @@ def find_columns_labels(source_df, api_key=None, contextual_columns_nb=1, model 
     Provide your response in a valid JSON format following this schema: {json.dumps(example_json)}
     """
 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"]) or OpenAI(api_key=api_key)
     success = False
 
     while not success:
@@ -177,7 +178,7 @@ def assign_columns(api_key, columns, source_df):
     success = False
     attempts = 3
     for attempt in range(attempts):
-        column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key)
+        column_label = find_columns_labels(source_df.drop(columns=["embedding"], errors='ignore'), api_key, contextual_columns_nb=columns["contextual_nb_columns"])
         
         #Change key name of "description_column" to "source_columns_to_embed"
         column_label["source_columns_to_embed"] = column_label.pop("description_column")
@@ -195,3 +196,31 @@ def assign_columns(api_key, columns, source_df):
             logging.warning(f"Failed to assign all columns. Check if you have the following columns in your data: {column_label.keys()}, Retrying...")
 
     return columns
+
+import re
+import unicodedata
+def normalize_text(text):
+    """Normalize and clean the text string by:
+    - Removing excessive whitespace
+    - Stripping non-printable characters
+    - Replacing special characters
+    - Normalizing unicode characters to ASCII
+    """
+    # Normalize unicode characters to their closest ASCII equivalent
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore')
+    
+    # Remove non-printable characters
+    text = re.sub(r'[^\x00-\x7F]+', ' ', text)
+    
+    # Replace multiple spaces with a single space
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Strip leading and trailing whitespace
+    text = text.strip()
+    
+    return text
+
+def check_and_normalize_series(series):
+    """Check and normalize a pandas Series of strings."""
+    return series.apply(lambda x: normalize_text(str(x)))
+

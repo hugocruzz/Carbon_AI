@@ -67,7 +67,7 @@ def translate_and_embed(df: pd.DataFrame,
     return df
 
 
-def main(reset: bool = False, semantic_error_estimation: bool = True):
+def main(reset: bool = False, semantic_error_estimation: bool = True, matched_output_export: bool = False):
 
     # Load the API key, feel free to change it 
     load_global_env()
@@ -94,7 +94,7 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
 
             source_df = pd.read_excel(paths["source_file"])
 
-            if automated_column_labeling:       
+            if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore')) #Drop column because confidential information 
 
             source_df = pre_process_source_df(columns["source_columns_to_embed"], source_df)
@@ -120,8 +120,6 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
             if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"],columns,source_df.drop(columns=columns.get("source_confidential_column", []), errors='ignore'))
 
-
-
             source_df = emphasize_and_combine_columns(source_df, columns["source_columns_emphasis"], columns["source_columns_to_embed"])
 
         if reset or not os.path.exists(paths["target_embedded_file"]):
@@ -141,8 +139,12 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
 
         # Match the datasets
         logging.info("Matching datasets")
-        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10)
-        
+        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10, chunk_size=2000)
+        if matched_output_export:
+            matched_df.to_excel(paths["output_file"], index=False)
+            output_hyper_path = get_file_paths(paths["matched_output_file"], ".hyper")
+            df_to_hyper(matched_df, output_hyper_path)
+
         output_columns = list(source_df.columns) + columns["target_columns_to_keep"] 
 
         df_converted = matched_df.copy()
@@ -172,19 +174,22 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
                 additional_currency_name = f'Amount in {currency_settings["target_currency_additional"]}'
                 df_converted[additional_currency_name] = converted_CHF_currency_serie
                 output_columns.append(additional_currency_name)
-        else:
+        elif currency_settings and not os.environ["FRED_API_KEY"]:
             Warning('''No currency conversion performed. Please provide a target currency and a FRED API key to convert the currency. Check the config file.\n
                     We consider that the amount in the target currency is already in the target currency and that the inflation is already corrected.''') 
-            df_converted["CO2e"] = df_converted[{currency_settings["amount_column"]}] * df_converted[columns["emission_factor_column"]]
+        else:
+            df_converted["CO2e"] = df_converted[columns["amount_column"]] * df_converted[columns["emission_factor_column"]]
         
         # Calculate the total uncertainty factor for each row
-        df_converted['total_uncertainty_factor'] = df_converted['per1p5.uncertainty.attr.kg.co2e.per.euro'] + \
-                                        (0.8 * df_converted['per1p5.uncertainty.80pct.kg.co2e.per.euro'])
+        if (columns["target_columns_uncertainty"]) and (columns["target_columns_uncertainty_80pct"]):
+            df_converted['total_uncertainty_factor'] = df_converted[columns["target_columns_uncertainty"]] + \
+                                            (0.8 * df_converted[columns["target_columns_uncertainty_80pct"]])
 
-        # Calculate the uncertainty in carbon emissions for each row
-        df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
+            # Calculate the uncertainty in carbon emissions for each row
+            df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
+            output_columns = output_columns + [columns["target_columns_uncertainty"], columns["target_columns_uncertainty_80pct"]]
 
-        output_columns = output_columns + ['combined_target', 'total_uncertainty_factor', 'uncertainty_carbon_emissions', 'CO2e']
+        output_columns = output_columns + ['combined_target', 'CO2e'] 
 
         final_df = df_converted[output_columns].drop(columns=["embedding"])
 
@@ -200,4 +205,4 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
         raise
 
 if __name__ == '__main__':
-    main(reset=False, semantic_error_estimation=True)
+    main(reset=False, semantic_error_estimation=True, matched_output_export=False)

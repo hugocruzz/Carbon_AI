@@ -101,7 +101,7 @@ def prepare_data(df_source, df_target, top_n):
     df_target.rename(columns={"combined": "combined_target"}, inplace=True)
     return df_unique, df_target
 
-def choose_best_match_gpt(df_dict, model="gpt-3.5-turbo-0125", chunk_size=7):
+def choose_best_match_gpt(df_dict, model="gpt-3.5-turbo-0125", chunk_size=20):
     """
     Chooses the best match using GPT based on similarity scores.
 
@@ -136,7 +136,8 @@ def choose_best_match_gpt(df_dict, model="gpt-3.5-turbo-0125", chunk_size=7):
             df_dict[int(key)]["Chosen option"] = data_json[key]["Chosen option"]
 
     return pd.DataFrame(list(df_dict.values()))
-def handle_unmatched_cases(df_matched, df_target, gpt_model="gpt-3.5-turbo-0125"):
+
+def handle_unmatched_cases(df_matched, df_target, gpt_model="gpt-3.5-turbo-0125", chunk_size=20):
     """
     Handles cases where matches are not found initially by using `find_closest_match` first
     and then using GPT model for remaining unmatched cases.
@@ -178,7 +179,7 @@ def handle_unmatched_cases(df_matched, df_target, gpt_model="gpt-3.5-turbo-0125"
         df_dict_unmatched = unmatched_df[["Article name", "Options"]].to_dict(orient='index')
 
         # Call GPT to attempt to find matches
-        df_processed_unmatched = choose_best_match_gpt(df_dict_unmatched, model=gpt_model)
+        df_processed_unmatched = choose_best_match_gpt(df_dict_unmatched, model=gpt_model, chunk_size=chunk_size)
         df_processed_unmatched.set_index(unmatched_df.index, inplace=True)
         unmatched_df["combined_target_gpt"] = df_processed_unmatched["Chosen option"]
 
@@ -196,8 +197,6 @@ def handle_unmatched_cases(df_matched, df_target, gpt_model="gpt-3.5-turbo-0125"
     return df_matched
 
 
-
-
 def find_closest_match(source_value, target_values):
     """
     Finds the closest match from the target values.
@@ -209,7 +208,7 @@ def find_closest_match(source_value, target_values):
     matches = get_close_matches(source_value, target_values, n=1, cutoff=0.6)
     return matches[0] if matches else None
 
-def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", api_key=None):
+def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", api_key=None, chunk_size=20):
     """
     Matches source and target datasets using embeddings and GPT model.
 
@@ -224,14 +223,14 @@ def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", ap
 
     # Step 1: Prepare data by dropping duplicates and handling embeddings
     df_unique, df_target = prepare_data(df_source, df_target, top_n)
-
+    df_unique.reset_index(drop=True, inplace=True)
     # Step 2: Rename columns for consistency and prepare the dictionary for GPT
     df_unique.rename(columns={"combined": 'Article name', "combined_target": "Options"}, inplace=True)
     df_dict = df_unique[["Article name", "Options"]].to_dict(orient='index')
     df_unique.drop(columns=["similarity_scores", "Options"], inplace=True)
 
     # Step 3: Use GPT to choose the best match
-    df_processed = choose_best_match_gpt(df_dict, model=gpt_model)
+    df_processed = choose_best_match_gpt(df_dict, model=gpt_model, chunk_size=chunk_size)
 
     # Step 4: Merge results and rename columns
     df_unique.rename(columns={"Article name": "combined"}, inplace=True)
@@ -242,7 +241,7 @@ def match_datasets(df_source, df_target, top_n=10, gpt_model="gpt-3.5-turbo", ap
     df_matched = pd.merge(df_results, df_target, left_on="combined_target_gpt", right_on="combined_target", how="left")
 
     # Step 6: Handle unmatched cases
-    df_matched = handle_unmatched_cases(df_matched, df_target, gpt_model=gpt_model)
+    df_matched = handle_unmatched_cases(df_matched, df_target, gpt_model=gpt_model, chunk_size=chunk_size)
 
     # Step 7: Final merge with the source DataFrame
     df_final = pd.merge(df_source, df_matched, on="combined", suffixes=('', '_unique'))

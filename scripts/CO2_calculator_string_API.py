@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import os
 import pandas as pd
 import openai
-from openai.embeddings_utils import get_embedding, cosine_similarity
 
 app = Flask(__name__)
 
