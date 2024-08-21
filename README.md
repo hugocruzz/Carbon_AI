@@ -47,18 +47,39 @@ Ensure you have the following installed:
 
 ### Step 1: Translate and Embed Data
 
-Modify `main_string.py` or `main.py` to accept either a string input or a DataFrame containing articles. Adjust columns and paths (input_path.yaml) as necessary.
+Modify `config.yaml` to adapt the inputs parameters.
 
 ### Step 2: Match Datasets
 
-Run `main_string.py` to:
+Run `main.py` to:
 - Translate and embed the source data.
 - Load and process the target dataset.
 - Match datasets based on embeddings using `Match_datasets.py`.
 
-### Step 3: Adjust and Customize
-
-Refine translations, embeddings, or matching strategies based on specific requirements. Adjust parameters like batch sizes and model configurations in the scripts as needed.
+5. Structure:
+   
+   ```bash
+   ├── Carbon_AI
+   │   ├── data
+   │   │   ├── input
+   │   │   │   ├── source_data.csv
+   │   │   │   ├── target_data.
+   │   │   ├── carbon_database
+   │   │   │   ├── Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx
+   │   │   ├── output
+   │   │   │   ├── matched_data.xslx
+   │   │   │   ├── matched_data.hyper
+   │   ├── scripts
+   │   │   ├── translate_db.py
+   │   │   ├── embed_dataframe.py
+   │   │   ├── match_datasets.py
+   │   |   ├── functions.py
+   │   |   ├── check_matching_errors.py
+   │   │   ├── main.py
+   │   |   ├── config.yaml
+   │   ├── requirements.txt
+   │   ├── README.md
+   ```
 
 ### Example
 

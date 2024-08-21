@@ -1,7 +1,10 @@
 .env
 data/carbon_database/Cut-off Cumulative LCIA v3.10.xlsx
+data/carbon_database/pre_processed Cut-off Cumulative LCIA v3.10_embedded.h5
+data/carbon_database/pre_processed Cut-off Cumulative LCIA v3.10_embedded.xlsx
 data/deprecated
 data/*.h5
 data/results
 data/input_data/achats_EPFL
+data/storage
 figures

@@ -178,19 +178,22 @@ def main(reset: bool = False, semantic_error_estimation: bool = True):
         else:
             Warning('''No currency conversion performed. Please provide a target currency and a FRED API key to convert the currency. Check the config file.\n
                     We consider that the amount in the target currency is already in the target currency and that the inflation is already corrected.''') 
-            df_converted["CO2e"] = df_converted[{currency_settings["amount_column"]}] * df_converted[columns["emission_factor_column"]]
-        
+            df_converted["CO2e"] = df_converted[{columns["amount_column"]}] * df_converted[columns["emission_factor_column"]]
         # Calculate the total uncertainty factor for each row
-        df_converted['total_uncertainty_factor'] = df_converted['per1p5.uncertainty.attr.kg.co2e.per.euro'] + \
-                                        (0.8 * df_converted['per1p5.uncertainty.80pct.kg.co2e.per.euro'])
+        if (columns["target_columns_uncertainty"]) and (columns["target_columns_uncertainty_80pct"]):
+            df_converted['total_uncertainty_factor'] = df_converted[columns["target_columns_uncertainty"]] + \
+                                            (0.8 * df_converted[columns["target_columns_uncertainty_80pct"]])
 
-        # Calculate the uncertainty in carbon emissions for each row
-        df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
-
-        output_columns = output_columns + ['combined_target','total_uncertainty_factor', 'uncertainty_carbon_emissions', 'CO2e']
+            # Calculate the uncertainty in carbon emissions for each row
+            df_converted['uncertainty_carbon_emissions'] = df_converted['CO2e'] * df_converted['total_uncertainty_factor']
+            output_columns = output_columns + [columns["target_columns_uncertainty"], columns["target_columns_uncertainty_80pct"]]
+            
+        output_columns = output_columns + ['combined_target', 'CO2e']
 
         final_df = df_converted[output_columns].drop(columns=["embedding"])
-
+        #Drop duplicated column names
+        final_df = final_df.loc[:,~final_df.columns.duplicated()]
+        
         if semantic_error_estimation: 
             logging.info("Estimating semantic errors")
             flagged_df = find_semantic_mismatches_batch(final_df, batch_size=200)

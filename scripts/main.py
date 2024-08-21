@@ -193,6 +193,8 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, matched_ou
 
         final_df = df_converted[output_columns].drop(columns=["embedding"])
 
+        final_df = final_df.loc[:,~final_df.columns.duplicated()]
+        
         if semantic_error_estimation: 
             logging.info("Estimating semantic errors")
             flagged_df = find_semantic_mismatches_batch(final_df, batch_size=200)
