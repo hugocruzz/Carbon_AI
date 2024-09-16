@@ -63,3 +63,4 @@ tzdata==2023.3
 urllib3==2.2.2
 Werkzeug==3.0.3
 wheel==0.43.0
+tiktoken==0.7.0

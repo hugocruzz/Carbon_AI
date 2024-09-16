@@ -4,6 +4,8 @@ import logging
 import yaml
 from typing import List
 from dataclasses import dataclass
+import argparse
+from dotenv import load_dotenv
 
 from translate_db import translate_db
 from embed_dataframe import embed_dataframe
@@ -22,14 +24,21 @@ from functions import (
 )
 
 # Configure logging
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_path = os.path.join(log_dir, 'app.log')
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("app.log"),
+        logging.FileHandler(log_path),
         logging.StreamHandler()
     ]
 )
+
 
 @dataclass
 class Config:
@@ -37,8 +46,7 @@ class Config:
     columns: dict
     currency_settings: dict
 
-
-def load_config(config_file: str = "config.yaml") -> Config:
+def load_config(config_file: str = "uploads/config.yaml") -> Config:
     with open(config_file, "r") as file:
         config_data = yaml.safe_load(file)
     return Config(**config_data)
@@ -49,33 +57,37 @@ def translate_and_embed(df: pd.DataFrame,
                         columns_to_embed: List[str], 
                         translate_file: str, 
                         embed_file: str, 
-                        api_key: str) -> pd.DataFrame:
+                        api_key: str,
+                        export_files: bool) -> pd.DataFrame:
     """Translate and embed specified dataframe columns."""
     if not os.path.exists(embed_file):
         if not os.path.exists(translate_file) and columns_to_translate:
             df = translate_db(df, columns_to_translate)
-            df.to_hdf(translate_file, key='df', mode='w', complevel=9, complib='blosc')
+            if export_files:
+                df.to_hdf(translate_file, key='df', mode='w', complevel=9, complib='blosc')
         elif columns_to_translate:
             df = pd.read_hdf(translate_file, key='df')
         else:
             df = embed_dataframe(df, columns_to_embed, combined_column_name="combined",
                                 output_embedding_name="embedding", api_key=api_key, embedding_model="text-embedding-3-small")
-            df.to_hdf(embed_file, key='df', mode='w', complevel=9, complib='blosc')
+            if export_files:
+                df.to_hdf(embed_file, key='df', mode='w', complevel=9, complib='blosc')
     else:
         df = pd.read_hdf(embed_file, key='df')
     
     return df
 
 
-def main(reset: bool = False, semantic_error_estimation: bool = True, matched_output_export: bool = False):
+def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_estimation: bool = True, matched_output_export: bool = False, export_files: bool = False):
 
     # Load the API key, feel free to change it 
-    load_global_env()
+    env_path = os.path.expanduser('~/global_env/.env')
+    load_dotenv(env_path)
     os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI')
     os.environ["FRED_API_KEY"] = os.getenv('FRED')
 
     # Load configuration
-    config = load_config("scripts/config.yaml")
+    config = load_config(config_path)
     paths = config.data_paths
     columns = config.columns
     currency_settings = config.currency_settings
@@ -91,7 +103,6 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, matched_ou
         if reset or not os.path.exists(paths["source_embedded_file"]):
             # Process source DataFrame
             logging.info("Processing source DataFrame")
-
             source_df = pd.read_excel(paths["source_file"])
 
             if automated_column_labeling:
@@ -114,13 +125,12 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, matched_ou
 
             source_df = translate_and_embed(source_df, columns["source_columns_to_translate"], 
                                             columns["source_columns_to_embed"], paths["source_translated_file"], 
-                                            paths["source_embedded_file"], os.environ["OPENAI_API_KEY"])
+                                            paths["source_embedded_file"], os.environ["OPENAI_API_KEY"],
+                                            export_files=export_files)
         else:
             source_df = pd.read_hdf(paths["source_embedded_file"], key='df')
             if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"],columns,source_df.drop(columns=columns.get("source_confidential_column", []), errors='ignore'))
-
-            source_df = emphasize_and_combine_columns(source_df, columns["source_columns_emphasis"], columns["source_columns_to_embed"])
 
         if reset or not os.path.exists(paths["target_embedded_file"]):
             # Process target DataFrame
@@ -139,11 +149,9 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, matched_ou
 
         # Match the datasets
         logging.info("Matching datasets")
-        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10, chunk_size=2000)
+        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=5, chunk_size=1500)
         if matched_output_export:
-            matched_df.to_excel(paths["output_file"], index=False)
-            output_hyper_path = get_file_paths(paths["matched_output_file"], ".hyper")
-            df_to_hyper(matched_df, output_hyper_path)
+            matched_df.drop(columns=["embedding"]).to_excel(paths["output_file"], index=False)
 
         output_columns = list(source_df.columns) + columns["target_columns_to_keep"] 
 
@@ -191,20 +199,34 @@ def main(reset: bool = False, semantic_error_estimation: bool = True, matched_ou
 
         output_columns = output_columns + ['combined_target', 'CO2e'] 
 
-        final_df = df_converted[output_columns].drop(columns=["embedding"])
+        final_df = df_converted[output_columns].drop(columns=['embedding'])
 
         final_df = final_df.loc[:,~final_df.columns.duplicated()]
         
         if semantic_error_estimation: 
             logging.info("Estimating semantic errors")
             flagged_df = find_semantic_mismatches_batch(final_df, batch_size=200)
-            flagged_df.to_excel(paths["output_file"], index=False)
+            logging.info(f"output file saved at {paths['output_file']}")
             output_hyper_path = get_file_paths(paths["output_file"], ".hyper")
             df_to_hyper(flagged_df, output_hyper_path)
+            final_df = flagged_df.copy()
 
+        final_df.to_excel(paths["output_file"], index=False)
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         raise
 
-if __name__ == '__main__':
-    main(reset=False, semantic_error_estimation=True, matched_output_export=False)
+if __name__ == '__main__':    
+    from preprocess_physical_database import *
+    env_path = os.path.expanduser('~/global_env/.env')
+    load_dotenv(env_path)
+    os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI')
+    chat_bot_structured_input()
+    parser = argparse.ArgumentParser(description="Run the main script with config path.")
+    
+    parser.add_argument('--config', type=str, required=True, help="Path to the config file")
+    parser.add_argument('--reset', type=bool, required=False, help="Reset the output files, please close them before running the script")
+    parser.add_argument('--semantic_error_estimation', type=bool, required=False, help="Export only the matched output without carbon calculations")
+    parser.add_argument('--matched_output_export', type=bool, required=False, help="semantic_error_estimation to estimate the errors")
+    #args = parser.parse_args()
+    main(config_path="scripts/configs/config_EPFL.yaml", reset=False, semantic_error_estimation=True, matched_output_export=True)

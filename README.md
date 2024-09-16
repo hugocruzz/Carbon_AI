@@ -63,7 +63,6 @@ Run `main.py` to:
    │   ├── data
    │   │   ├── input
    │   │   │   ├── source_data.csv
-   │   │   │   ├── target_data.
    │   │   ├── carbon_database
    │   │   │   ├── Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx
    │   │   ├── output
@@ -75,8 +74,20 @@ Run `main.py` to:
    │   │   ├── match_datasets.py
    │   |   ├── functions.py
    │   |   ├── check_matching_errors.py
+   │   │   ├── app.py
    │   │   ├── main.py
-   │   |   ├── config.yaml
+   │   |   ├── configs
+   │   |   |   ├── config_ecoivent.yaml #Ecoivent configuration using template data, physical estimation
+   │   |   |   ├── config_EPFL.yaml #EPFL configuration for purchases carbon estimation
+   │   |   |   ├── config_L1P5.yaml   #Labo1point5 configuration using template data 
+   │   |   |   ├── config.yaml  #Default configuration using template data
+   │   |   ├── templates
+   │   |   |   ├── index.html
+   │   |   |   ├── config.html
+   │   |   |   ├── logs.html
+   │   ├── uploads
+   │   ├── logs
+   │   |   ├── app.logs
    │   ├── requirements.txt
    │   ├── README.md
    ```

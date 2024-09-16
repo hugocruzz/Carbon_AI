@@ -9,6 +9,36 @@ import logging
 from difflib import get_close_matches
 from openai import OpenAIError
 
+import tiktoken
+import math
+
+def estimate_chunk_size(df_dict, token_limit=120000, model="gpt-4o-mini"):
+    """
+    Estimate the chunk size for df_dict such that the number of tokens per chunk is below token_limit.
+    
+    Parameters:
+    df_dict (dict): Dictionary with 2 keys. Each key's value should be a string or similar tokenizable data.
+    token_limit (int): The maximum number of tokens allowed per chunk. Default is 120000.
+    model (str): The model to use for tokenization (default is gpt-3.5-turbo).
+    
+    Returns:
+    int: The calculated chunk size.
+    """
+
+    # Initialize the tokenizer for the specified model
+    tokenizer = tiktoken.encoding_for_model(model)
+
+    # Calculate total tokens for each key's value in the dictionary
+    total_tokens = sum(
+        len(tokenizer.encode(inner_value))
+        for inner_dict in df_dict.values() if isinstance(inner_dict, dict)
+        for inner_value in inner_dict.values() if isinstance(inner_value, str)
+    )
+    
+    # Estimate chunk size
+    chunk_size = max(1, math.floor(token_limit / total_tokens))
+    
+    return chunk_size
 
 def call_api_with_retries(client, model, chunk, example_json, max_retries=5, initial_delay=1):
     """
@@ -88,9 +118,8 @@ def prepare_data(df_source, df_target, top_n):
     :param top_n: Number of top similarities to consider
     :return: Prepared source and target DataFrames
     """
-    df_unique = df_source.drop_duplicates(subset=["combined"])
+    df_unique = df_source.drop_duplicates(subset=["combined"]).copy()
     similarity_scores, closest_indices = calculate_similarity_embeddings(df_unique, df_target, top_n)
-
     df_unique["similarity_scores"] = list(similarity_scores)
     df_unique["combined_target"] = [[df_target.loc[idx, "combined"] for idx in row] for row in closest_indices]
 
@@ -111,6 +140,7 @@ def choose_best_match_gpt(df_dict, model="gpt-3.5-turbo-0125", chunk_size=20):
     :return: DataFrame with chosen options
     """
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    chunk_size = estimate_chunk_size(df_dict, model=model)
     df_dict_chunks = [
         dict(list(df_dict.items())[i:i + chunk_size]) for i in range(0, len(df_dict), chunk_size)
     ]
@@ -151,7 +181,7 @@ def handle_unmatched_cases(df_matched, df_target, gpt_model="gpt-3.5-turbo-0125"
     attempt = 0
     
     unmatched_mask = df_matched["combined_target"].isnull()
-    unmatched_df = df_matched[unmatched_mask]
+    unmatched_df = df_matched[unmatched_mask].copy()
     while not unmatched_df.empty and attempt < 3:
         # Identify unmatched cases
         unmatched_df.drop(columns=df_target.columns, inplace=True)

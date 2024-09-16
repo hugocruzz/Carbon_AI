@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        #log-container {
+            white-space: pre-wrap;
+            height: 500px;
+            overflow-y: scroll;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .back-link {
+            display: block;
+            margin: 20px auto;
+            text-align: center;
+            text-decoration: none;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Log Viewer</h1>
+    <a href="{{ url_for('index') }}" class="back-link">Back to Home</a>
+    <div id="log-container"></div>
+
+    <script>
+        function fetchLogs() {
+            fetch('/logs')
+            .then(response => response.text())
+            .then(data => {
+                const logContainer = document.getElementById('log-container');
+                logContainer.textContent = data;
+                logContainer.scrollTop = logContainer.scrollHeight;
+            });
+        }
+
+        // Fetch logs initially and then every 2 seconds
+        fetchLogs();
+        setInterval(fetchLogs, 2000);
+    </script>
+</body>
+</html>
