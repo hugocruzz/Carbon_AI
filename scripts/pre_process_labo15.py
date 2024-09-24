@@ -43,7 +43,6 @@ if __name__ == '__main__':
     # Function to replace NaNs with medians in multiple float columns
     def replace_nan_with_median(df):
         float_columns = df.select_dtypes(include=['float64']).columns
-
         for column in float_columns:
             for i, row in df.iterrows():
                 code = row['nacres.code']

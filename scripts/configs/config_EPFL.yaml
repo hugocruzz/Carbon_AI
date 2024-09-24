@@ -1,5 +1,5 @@
 data_paths:
-  source_file : "data/input_data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023.xlsx" #Should correspond to your purchases file
+  source_file : "data/input_data/achats_EPFL/Catalyse_Ligne articles 2023_TOTAL EPFL.xlsx" #Should correspond to your purchases file
   source_file_manual_correction: "data/input_data/achats_EPFL/Extraction lignes de commandes CATALYSE 2023_manual_correction.xlsx" #[OPTIONAL] Leave empty if no manual correction needed
   target_file: 'data/carbon_database/Target_pre_processed_PER1p5_nacres_fe_database_v1-0-2023.xlsx' #Should  correspond to the database file 
   output_file : "data/output/EPFL_CO2_2023.xlsx" #Feel free to change it

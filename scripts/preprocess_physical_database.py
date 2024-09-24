@@ -25,7 +25,6 @@ def chat_bot_structured_input(api_key=None, model = "gpt-4o-mini"):
     "additional_context": "Additional context to help understand the product, if not provided, leave it empty",
     "unit": "Unit of the value (standard units: kg, m3, MJ, kWh, m, m2, hours, year, g). Convert to the standard unit if necessary and adapt the value accordingly.",
     "value": "Value of the product in the unit provided",
-
     "Allocation_method": "Allocation method used for the LCA. Options include 'Economic allocation', 'Physical allocation', 'No allocation', 'Substitution'. You can set the default based on the unit of the value you found or if unknown: 'No allocation'.",
     "Market_transformation": "Market transformation considered in the LCA. Options include 'Market' (market-based approach) and 'Transformation' (focus on transformation processes). Default if unknown: 'Market'.",
     "Geographical_scope": "Geographical scope of the LCA. Options include specific regions such as 'Europe', 'United States', 'Asia', or 'Global'. Default if unknown: 'Global'.",
@@ -66,5 +65,8 @@ def chat_bot_structured_input(api_key=None, model = "gpt-4o-mini"):
         success = True
     return data_json
 
+def find_material_composition(description):
+    #Description can be a string or a pandas series or a list of strings
+    print(1)
 if __name__ == '__main__':
     chat_bot_structured_input()

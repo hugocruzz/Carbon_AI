@@ -47,9 +47,10 @@ class Config:
     currency_settings: dict
 
 def load_config(config_file: str = "uploads/config.yaml") -> Config:
-    with open(config_file, "r") as file:
+    with open(config_file, "r", encoding="utf-8") as file:  # Specify UTF-8 encoding
         config_data = yaml.safe_load(file)
     return Config(**config_data)
+
 
 
 def translate_and_embed(df: pd.DataFrame, 
@@ -104,9 +105,12 @@ def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_
             # Process source DataFrame
             logging.info("Processing source DataFrame")
             source_df = pd.read_excel(paths["source_file"])
+            source_df = source_df.drop_duplicates().reset_index(drop=True)
 
             if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore')) #Drop column because confidential information 
+            #print duplicate rows 
+
 
             source_df = pre_process_source_df(columns["source_columns_to_embed"], source_df)
 
@@ -229,4 +233,4 @@ if __name__ == '__main__':
     parser.add_argument('--semantic_error_estimation', type=bool, required=False, help="Export only the matched output without carbon calculations")
     parser.add_argument('--matched_output_export', type=bool, required=False, help="semantic_error_estimation to estimate the errors")
     #args = parser.parse_args()
-    main(config_path="scripts/configs/config_EPFL.yaml", reset=False, semantic_error_estimation=True, matched_output_export=True)
+    main(config_path="scripts/configs/config.yaml", reset=False, semantic_error_estimation=True, matched_output_export=True)

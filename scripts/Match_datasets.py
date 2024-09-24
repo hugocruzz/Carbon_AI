@@ -65,7 +65,8 @@ def call_api_with_retries(client, model, chunk, example_json, max_retries=5, ini
                     {"role": "system", "content":
                      f"""You are an assistant tasked with selecting the most relevant option in the "Options" field from a list based on an 'Article name' and its description.
                         For each element in the provided JSON dictionary, your primary goal is to select the option that represents the broadest category encompassing the key terms found inside asterisks (*) within the 'Article name'.
-                        If the 'Article name' mentions multiple categories (e.g., biological, chemical, and gaseous), prioritize options that broadly cover all or most of these categories, rather than focusing on specific terms.
+                        If the 'Article name' mentions multiple categories (e.g., biological, chemical, and gaseous or Laboratory, measurement, observation and testing equipment), 
+                        prioritize options that broadly cover all or most of these categories, rather than focusing on specific terms.
                         Choose the option that best represents a broad category over a specific one, unless the context strongly favors specificity.
                         Provide your output in valid JSON format.
                         The data schema should be like this: {json.dumps(example_json)}"""
