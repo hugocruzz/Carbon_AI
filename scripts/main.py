@@ -6,7 +6,7 @@ from typing import List
 from dataclasses import dataclass
 import argparse
 from dotenv import load_dotenv
-
+from clustering import clustering
 from translate_db import translate_db
 from embed_dataframe import embed_dataframe
 from match_datasets import match_datasets
@@ -65,16 +65,16 @@ def translate_and_embed(df: pd.DataFrame,
         if not os.path.exists(translate_file) and columns_to_translate:
             df = translate_db(df, columns_to_translate)
             if export_files:
-                df.to_hdf(translate_file, key='df', mode='w', complevel=9, complib='blosc')
+                df.to_pickle(translate_file)
         elif columns_to_translate:
-            df = pd.read_hdf(translate_file, key='df')
+            df = pd.read_pickle(translate_file)
         else:
             df = embed_dataframe(df, columns_to_embed, combined_column_name="combined",
                                 output_embedding_name="embedding", api_key=api_key, embedding_model="text-embedding-3-small")
             if export_files:
-                df.to_hdf(embed_file, key='df', mode='w', complevel=9, complib='blosc')
+                df.to_pickle(embed_file)
     else:
-        df = pd.read_hdf(embed_file, key='df')
+        df = pd.read_pickle(embed_file)
     
     return df
 
@@ -95,18 +95,18 @@ def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_
 
     automated_column_labeling = columns["automated_column_labeling"]
 
-    paths["source_translated_file"] = get_file_paths(paths["source_file"], "_translated.h5")
-    paths["source_embedded_file"] = get_file_paths(paths["source_file"], "_embedded.h5")
-    paths["target_translated_file"] = get_file_paths(paths["target_file"], "_translated.h5")
-    paths["target_embedded_file"] = get_file_paths(paths["target_file"], "_embedded.h5")
+    paths["source_translated_file"] = get_file_paths(paths["source_file"], "_translated.pkl")
+    paths["source_embedded_file"] = get_file_paths(paths["source_file"], "_embedded.pkl")
+    paths["target_translated_file"] = get_file_paths(paths["target_file"], "_translated.pkl")
+    paths["target_embedded_file"] = get_file_paths(paths["target_file"], "_embedded.pkl")
 
     try:
         if reset or not os.path.exists(paths["source_embedded_file"]):
             # Process source DataFrame
             logging.info("Processing source DataFrame")
             source_df = pd.read_excel(paths["source_file"])
+            source_df = source_df[source_df["Entité de gestion"] == "002000School of Life Sciences"]
             source_df = source_df.drop_duplicates().reset_index(drop=True)
-
             if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"], columns, source_df.drop(columns=columns["source_confidential_column"], errors='ignore')) #Drop column because confidential information 
             #print duplicate rows 
@@ -127,12 +127,17 @@ def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_
             else:
                 print("No hierarchical selection implemented. Please provide a column name if you want to perform hierarchical selection.")
 
+            source_df = clustering(source_df, columns["source_columns_to_embed"], combined_column_name="combined", embedding_output_path ="data\output\embeddings_mpnet_temp.pkl", 
+                                   n_clusters=150, batch_size=64)
+            source_df["combined"] = source_df["cluster_title"]
+
             source_df = translate_and_embed(source_df, columns["source_columns_to_translate"], 
                                             columns["source_columns_to_embed"], paths["source_translated_file"], 
                                             paths["source_embedded_file"], os.environ["OPENAI_API_KEY"],
                                             export_files=export_files)
+            
         else:
-            source_df = pd.read_hdf(paths["source_embedded_file"], key='df')
+            source_df = pd.read_pickle(paths["source_embedded_file"])
             if automated_column_labeling:
                 columns = assign_columns(os.environ["OPENAI_API_KEY"],columns,source_df.drop(columns=columns.get("source_confidential_column", []), errors='ignore'))
 
@@ -144,16 +149,16 @@ def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_
 
             target_df = translate_and_embed(target_df, columns["target_columns_to_translate"], 
                                             columns["target_columns_to_embed"], paths["target_translated_file"], 
-                                            paths["target_embedded_file"], os.environ["OPENAI_API_KEY"])
+                                            paths["target_embedded_file"], os.environ["OPENAI_API_KEY"], export_files=True)
         else:
-            target_df = pd.read_hdf(paths["target_embedded_file"], key='df')
+            target_df = pd.read_pickle(paths["target_embedded_file"])
             target_df = emphasize_and_combine_columns(target_df, columns["target_columns_emphasis"], columns["target_columns_to_embed"])
             target_df = target_df.drop_duplicates(subset='combined', keep='first').reset_index(drop=True)
 
 
         # Match the datasets
         logging.info("Matching datasets")
-        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=5, chunk_size=1500)
+        matched_df = match_datasets(source_df, target_df, gpt_model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"], top_n=10, chunk_size=1500)
         if matched_output_export:
             matched_df.drop(columns=["embedding"]).to_excel(paths["output_file"], index=False)
 
@@ -210,12 +215,12 @@ def main(config_path="configs/config.yaml", reset: bool = False, semantic_error_
         if semantic_error_estimation: 
             logging.info("Estimating semantic errors")
             flagged_df = find_semantic_mismatches_batch(final_df, batch_size=200)
-            logging.info(f"output file saved at {paths['output_file']}")
             output_hyper_path = get_file_paths(paths["output_file"], ".hyper")
             df_to_hyper(flagged_df, output_hyper_path)
             final_df = flagged_df.copy()
 
         final_df.to_excel(paths["output_file"], index=False)
+        logging.info(f"output file saved at {paths['output_file']}")
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         raise
@@ -233,4 +238,4 @@ if __name__ == '__main__':
     parser.add_argument('--semantic_error_estimation', type=bool, required=False, help="Export only the matched output without carbon calculations")
     parser.add_argument('--matched_output_export', type=bool, required=False, help="semantic_error_estimation to estimate the errors")
     #args = parser.parse_args()
-    main(config_path="scripts/configs/config.yaml", reset=False, semantic_error_estimation=True, matched_output_export=True)
+    main(config_path="scripts/configs/config_EPFL.yaml", reset=False, semantic_error_estimation=True, matched_output_export=True, export_files=True)

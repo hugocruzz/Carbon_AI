@@ -2,6 +2,27 @@ import pandas as pd
 from openai import OpenAI
 import os 
 from functions import check_and_normalize_series
+
+import sys
+from more_itertools import chunked
+from sentence_transformers import SentenceTransformer
+
+def emmbed_df_internal(df, batch_size=64):
+    # Load data
+    df["text"] = df["combined"].copy()
+    # Load model
+    model = SentenceTransformer('all-mpnet-base-v2', device='cpu')
+
+    embeddings = []
+    for batch_text in chunked(df['text'].tolist(), batch_size):
+        embeddings.extend(model.encode(batch_text, show_progress_bar=False))
+        sys.stdout.write(f'\rprocessed for {len(embeddings)} works so far... (out of {df.shape[0]})')
+        sys.stdout.flush()
+
+    embeddings = pd.DataFrame(embeddings, index=df.index)
+
+    embeddings.to_pickle('data\input_data\achats_EPFL\embeddings.pkl')
+
 def embed_dataframe(df, embedding_column_name, combined_column_name="combined", output_embedding_name="embedding", api_key=None, embedding_model="text-embedding-ada-002"):
     """Embed dataframe columns using OpenAI embeddings."""
     
